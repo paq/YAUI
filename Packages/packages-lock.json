@@ -4,7 +4,12 @@
       "version": "file:com.ruccho.yaui",
       "depth": 0,
       "source": "embedded",
-      "dependencies": {}
+      "dependencies": {
+        "com.unity.burst": "2.0.0",
+        "com.unity.collections": "6.7.0",
+        "com.unity.render-pipelines.universal": "17.7.0",
+        "com.unity.ugui": "2.7.0"
+      }
     },
     "com.unity.ai.navigation": {
       "version": "2.0.14",
@@ -17,7 +22,7 @@
     },
     "com.unity.burst": {
       "version": "2.0.0",
-      "depth": 2,
+      "depth": 1,
       "source": "builtin",
       "dependencies": {}
     },
@@ -30,7 +35,7 @@
     },
     "com.unity.collections": {
       "version": "6.7.0",
-      "depth": 2,
+      "depth": 1,
       "source": "builtin",
       "dependencies": {
         "com.unity.burst": "1.8.25",
@@ -175,7 +180,7 @@
     },
     "com.unity.test-framework.performance": {
       "version": "6.7.0",
-      "depth": 3,
+      "depth": 2,
       "source": "builtin",
       "dependencies": {
         "com.unity.test-framework": "1.1.33",

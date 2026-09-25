@@ -1,0 +1,417 @@
+using System;
+using System.Collections.Generic;
+using System.Runtime.InteropServices;
+using Unity.Collections;
+using Unity.Jobs;
+using Unity.Profiling;
+using UnityEngine;
+using UnityEngine.LowLevel;
+using UnityEngine.PlayerLoop;
+using UnityEngine.Rendering;
+using Yaui.Layout.Yoga;
+using Yaui.Rendering;
+using Yaui.Text;
+
+namespace Yaui.Core
+{
+    /// <summary>
+    /// Owns the data shared by all panels and runs the frame pipeline (planning/design-core.md):
+    /// <list type="number">
+    /// <item>Setters write to the stores and mark things dirty at any time on the main thread.</item>
+    /// <item>Submission (start of PostLateUpdate, the deadline for changes): rebuilds changed structures, applies
+    /// changed layout styles to Yoga and schedules the layout on a worker thread.</item>
+    /// <item>Collection (<see cref="RenderPipelineManager.beginContextRendering"/>): waits for the layout, applies
+    /// it, propagates transforms, and uploads the dirty chunks.</item>
+    /// </list>
+    /// Jobs only touch data that setters do not write (Yoga nodes are updated at submission only).
+    /// </summary>
+    internal static class YauiSystem
+    {
+        static readonly ProfilerMarker SubmitMarker = new("Yaui.Submit");
+        static readonly ProfilerMarker EarlySubmitMarker = new("Yaui.EarlySubmit");
+        static readonly ProfilerMarker CollectMarker = new("Yaui.Collect");
+        static readonly ProfilerMarker LayoutMarker = new("Yaui.Layout");
+
+        static bool initialized;
+        static readonly List<PanelState> Panels = new();
+        static readonly List<PanelState> LayoutPanels = new();
+        static NativeList<RootLayout> layoutRoots;
+        static NativeList<IntPtr> layoutBoundaries;
+        static NativeList<IntPtr> parallelBoundaries;
+        static JobHandle layoutJob;
+        static GCHandle layoutJobPanels;
+        static bool layoutInFlight;
+        static bool submittedSinceCollect;
+
+        public static bool IsInitialized => initialized;
+
+        public static NodeStore Nodes { get; private set; }
+        public static GpuStore<PrimitiveData> Primitives { get; private set; }
+        public static GpuStore<PrimitiveExt> Exts { get; private set; }
+        public static GpuStore<ClipGpuData> Clips { get; private set; }
+
+        internal static PanelRenderer Renderer { get; private set; }
+
+        internal static TextureRegistry Textures { get; private set; }
+
+        /// <summary>A concrete list, so that foreach does not box the enumerator.</summary>
+        internal static List<PanelState> AllPanels => Panels;
+
+        public static void EnsureInitialized()
+        {
+            if (initialized)
+            {
+                return;
+            }
+
+            initialized = true;
+            Nodes = new NodeStore(1024);
+            Primitives = new GpuStore<PrimitiveData>(1024, reserved: 1);
+            Exts = new GpuStore<PrimitiveExt>(64, reserved: 1);
+            Clips = new GpuStore<ClipGpuData>(64, reserved: 1);
+            Clips[0] = new ClipGpuData { Rect = ClipGpuData.NoClip };
+            Textures = new TextureRegistry();
+            TextPipeline.Subscribe();
+            layoutRoots = new NativeList<RootLayout>(4, Allocator.Persistent);
+            layoutBoundaries = new NativeList<IntPtr>(64, Allocator.Persistent);
+            parallelBoundaries = new NativeList<IntPtr>(64, Allocator.Persistent);
+            Renderer = new PanelRenderer();
+
+            InstallPlayerLoop();
+            RenderPipelineManager.beginContextRendering += OnBeginContextRendering;
+            Application.quitting += Shutdown;
+#if UNITY_EDITOR
+            UnityEditor.AssemblyReloadEvents.beforeAssemblyReload += Shutdown;
+            UnityEditor.EditorApplication.update += EditorUpdate;
+#endif
+        }
+
+#if UNITY_EDITOR
+        /// <summary>Edit mode has no player loop: submits from the editor update, before the views render.</summary>
+        static void EditorUpdate()
+        {
+            if (!Application.isPlaying && !submittedSinceCollect)
+            {
+                Submit();
+            }
+        }
+#endif
+
+        static void Shutdown()
+        {
+            if (!initialized)
+            {
+                return;
+            }
+
+            CompleteLayout();
+            TextPipeline.Complete();
+            TextPipeline.Unsubscribe();
+            Tickers.Clear();
+            RenderPipelineManager.beginContextRendering -= OnBeginContextRendering;
+            Application.quitting -= Shutdown;
+#if UNITY_EDITOR
+            UnityEditor.AssemblyReloadEvents.beforeAssemblyReload -= Shutdown;
+            UnityEditor.EditorApplication.update -= EditorUpdate;
+#endif
+            UninstallPlayerLoop();
+            foreach (var panel in Panels)
+            {
+                panel.Dispose();
+            }
+
+            Panels.Clear();
+            Renderer.Dispose();
+            Textures.Dispose();
+            Nodes.Dispose();
+            YogaNodeStore.DisposeAll();
+            layoutRoots.Dispose();
+            layoutBoundaries.Dispose();
+            parallelBoundaries.Dispose();
+            Primitives.Dispose();
+            Exts.Dispose();
+            Clips.Dispose();
+            initialized = false;
+        }
+
+        public static PanelState CreatePanel(YauiPanel panel)
+        {
+            EnsureInitialized();
+            var state = new PanelState(panel);
+            Panels.Add(state);
+            return state;
+        }
+
+        /// <summary>Main thread: runs the pipeline now, so that changes are laid out and uploaded immediately.</summary>
+        public static void ForceUpdate()
+        {
+            if (!initialized)
+            {
+                return;
+            }
+
+            // Applies what was submitted before, then submits the changes made since.
+            if (submittedSinceCollect)
+            {
+                Collect();
+            }
+
+            Submit();
+            Collect();
+        }
+
+        public static void DestroyPanel(PanelState state)
+        {
+            if (!initialized)
+            {
+                return;
+            }
+
+            CompleteLayout();
+            Panels.Remove(state);
+            state.Dispose();
+        }
+
+        /// <summary>Asks the editor to render a frame after a change in edit mode.</summary>
+        public static void RequestUpdate()
+        {
+#if UNITY_EDITOR
+            if (!Application.isPlaying)
+            {
+                UnityEditor.EditorApplication.QueuePlayerLoopUpdate();
+            }
+#endif
+        }
+
+        #region Player loop
+
+        struct YauiSubmit
+        {
+        }
+
+        struct YauiEarlySubmit
+        {
+        }
+
+        static void InstallPlayerLoop()
+        {
+            var loop = PlayerLoop.GetCurrentPlayerLoop();
+            if (Insert(ref loop))
+            {
+                PlayerLoop.SetPlayerLoop(loop);
+            }
+        }
+
+        static bool Insert(ref PlayerLoopSystem loop)
+        {
+            var inserted = false;
+            for (var i = 0; i < loop.subSystemList.Length; i++)
+            {
+                ref var system = ref loop.subSystemList[i];
+                if (system.type == typeof(PreLateUpdate))
+                {
+                    inserted |= InsertFirst(ref system, typeof(YauiEarlySubmit), EarlySubmit);
+                }
+                else if (system.type == typeof(PostLateUpdate))
+                {
+                    inserted |= InsertFirst(ref system, typeof(YauiSubmit), Submit);
+                }
+            }
+
+            return inserted;
+        }
+
+        static bool InsertFirst(ref PlayerLoopSystem system, Type type, PlayerLoopSystem.UpdateFunction function)
+        {
+            foreach (var sub in system.subSystemList)
+            {
+                if (sub.type == type)
+                {
+                    return false;
+                }
+            }
+
+            var list = new List<PlayerLoopSystem>(system.subSystemList);
+            list.Insert(0, new PlayerLoopSystem { type = type, updateDelegate = function });
+            system.subSystemList = list.ToArray();
+            return true;
+        }
+
+        static void UninstallPlayerLoop()
+        {
+            var loop = PlayerLoop.GetCurrentPlayerLoop();
+            for (var i = 0; i < loop.subSystemList.Length; i++)
+            {
+                ref var system = ref loop.subSystemList[i];
+                if (system.type == typeof(PreLateUpdate) || system.type == typeof(PostLateUpdate))
+                {
+                    system.subSystemList = Array.FindAll(system.subSystemList,
+                        s => s.type != typeof(YauiSubmit) && s.type != typeof(YauiEarlySubmit));
+                }
+            }
+
+            PlayerLoop.SetPlayerLoop(loop);
+        }
+
+        #endregion
+
+        /// <summary>
+        /// Main thread, after Update: starts generating the texts changed so far, so that the generation overlaps
+        /// with the animation and LateUpdate.
+        /// </summary>
+        static void EarlySubmit()
+        {
+            if (initialized)
+            {
+                using var _ = EarlySubmitMarker.Auto();
+                TextPipeline.Schedule();
+            }
+        }
+
+        /// <summary>Main thread: the deadline of changes for this frame. Starts the heavy work on worker threads.</summary>
+        static void Submit()
+        {
+            if (!initialized)
+            {
+                return;
+            }
+
+            using var _ = SubmitMarker.Auto();
+            Tickers.Tick();
+
+            // A frame without rendering leaves the previous work uncollected.
+            if (layoutInFlight)
+            {
+                Collect();
+            }
+
+            submittedSinceCollect = true;
+            Pools.RecycleReleasedNodes();
+            TextPipeline.Schedule();
+            LayoutPanels.Clear();
+            layoutRoots.Clear();
+            layoutBoundaries.Clear();
+            parallelBoundaries.Clear();
+            foreach (var panel in Panels)
+            {
+                if (panel.Root == null)
+                {
+                    continue;
+                }
+
+                panel.Panel.UpdateCanvas(panel);
+                if (panel.StructureDirty)
+                {
+                    panel.RebuildStructure();
+                }
+
+                if (panel.PrepareLayout())
+                {
+                    panel.LayoutScheduled = true;
+                    LayoutPanels.Add(panel);
+                    layoutRoots.Add(panel.RootLayout);
+                }
+            }
+
+            Renderer.QueueWorldPanels();
+            if (LayoutPanels.Count == 0)
+            {
+                return;
+            }
+
+            layoutJobPanels = GCHandle.Alloc(LayoutPanels);
+            // Measuring texts reads their generation.
+            // Measures of changed texts (managed; they may dirty layout boundaries), then the layout (Burst).
+            layoutJob = new LayoutJob { Panels = layoutJobPanels, Boundaries = layoutBoundaries }
+                .Schedule(TextPipeline.Handle);
+            layoutJob = new TreeLayoutJob
+            {
+                Roots = layoutRoots, Boundaries = layoutBoundaries, Parallel = parallelBoundaries,
+            }.Schedule(layoutJob);
+            layoutJob = new BoundaryLayoutJob { Boundaries = parallelBoundaries.AsDeferredJobArray() }
+                .Schedule(parallelBoundaries, 4, layoutJob);
+            layoutJob = new BoundaryFixupJob { Boundaries = layoutBoundaries }.Schedule(layoutJob);
+            JobHandle.ScheduleBatchedJobs();
+            layoutInFlight = true;
+        }
+
+        static void CompleteLayout()
+        {
+            if (!layoutInFlight)
+            {
+                return;
+            }
+
+            layoutJob.Complete();
+            layoutJobPanels.Free();
+            layoutInFlight = false;
+        }
+
+        static void OnBeginContextRendering(ScriptableRenderContext context, List<Camera> cameras)
+        {
+            // Selected first, so that a synchronous submission (edit mode) lays out for this camera.
+            Renderer.SelectCamera(cameras);
+            Collect();
+        }
+
+        /// <summary>Main thread, right before rendering: applies the results and uploads the changes.</summary>
+        static void Collect()
+        {
+            if (!initialized)
+            {
+                return;
+            }
+
+            // Edit mode (and anything else that skips the player loop) runs the pipeline synchronously.
+            if (!submittedSinceCollect)
+            {
+                Submit();
+            }
+
+            submittedSinceCollect = false;
+            using var _ = CollectMarker.Auto();
+            CompleteLayout();
+            TextPipeline.Complete();
+            foreach (var panel in Panels)
+            {
+                if (panel.LayoutScheduled)
+                {
+                    panel.ApplyLayout();
+                }
+            }
+
+            TextPipeline.Finish();
+            foreach (var panel in Panels)
+            {
+                if (panel.OrderDirty)
+                {
+                    panel.RebuildOrder();
+                }
+
+                panel.UpdateTransforms();
+            }
+
+            Primitives.Upload();
+            Exts.Upload();
+            Nodes.Gpu.Upload();
+            Clips.Upload();
+            Renderer.Prepare();
+        }
+
+        /// <summary>Resolves the measures of changed texts and collects the dirty layout boundaries (managed).</summary>
+        struct LayoutJob : IJob
+        {
+            public GCHandle Panels;
+            public NativeList<IntPtr> Boundaries;
+
+            public void Execute()
+            {
+                using var _ = LayoutMarker.Auto();
+                foreach (var panel in (List<PanelState>)Panels.Target)
+                {
+                    panel.ResolveMeasures(Boundaries);
+                }
+            }
+        }
+    }
+}

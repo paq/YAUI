@@ -1,0 +1,18 @@
+<!-- Internal TextCore members that YAUI (Yaui.Text.AtgInternals, AtgSelection) reaches only through reflection. -->
+<linker>
+    <assembly fullname="UnityEngine.TextCoreTextEngineModule">
+        <type fullname="UnityEngine.TextCore.Text.TextLib" preserve="all"/>
+        <type fullname="UnityEngine.TextCore.NativeTextGenerationSettings" preserve="all"/>
+        <type fullname="UnityEngine.TextCore.Text.NativeTextInfo" preserve="all"/>
+        <type fullname="UnityEngine.TextCore.Text.ATGMeshInfo" preserve="all"/>
+        <type fullname="UnityEngine.TextCore.Text.NativeTextElementInfo" preserve="all"/>
+        <type fullname="UnityEngine.TextCore.Text.TextCoreVertex" preserve="all"/>
+        <type fullname="UnityEngine.TextCore.Text.TextGenerationInfo" preserve="all"/>
+        <type fullname="UnityEngine.TextCore.Text.OSFontFallbackResolver" preserve="all"/>
+        <type fullname="UnityEngine.TextCore.NativeRichTextAssetRegistry" preserve="all"/>
+        <type fullname="UnityEngine.TextCore.Generation.TextGenerator" preserve="all"/>
+        <type fullname="UnityEngine.TextCore.Text.FontAsset" preserve="all"/>
+        <type fullname="UnityEngine.TextCore.Text.TextSettings" preserve="all"/>
+        <type fullname="UnityEngine.TextCore.Text.TextSelectionService" preserve="all"/>
+    </assembly>
+</linker>

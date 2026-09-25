@@ -1,15 +1,12 @@
 {
-    "name": "Yaui.Editor",
-    "rootNamespace": "Yaui.Editor",
+    "name": "Yaui.Samples.Controls",
+    "rootNamespace": "Yaui.Samples.Controls",
     "references": [
-        "Yaui",
-        "Unity.Mathematics"
+        "Yaui"
     ],
-    "includePlatforms": [
-        "Editor"
-    ],
+    "includePlatforms": [],
     "excludePlatforms": [],
-    "allowUnsafeCode": true,
+    "allowUnsafeCode": false,
     "overrideReferences": false,
     "precompiledReferences": [],
     "autoReferenced": true,

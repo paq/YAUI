@@ -5,9 +5,31 @@
     "description": "Yet Another Unity UI",
     "unity": "6000.7",
     "unityRelease": "0b2",
-    "dependencies": {},
+    "dependencies": {
+        "com.unity.burst": "2.0.0",
+        "com.unity.collections": "6.7.0",
+        "com.unity.render-pipelines.universal": "17.7.0",
+        "com.unity.ugui": "2.7.0"
+    },
     "author": {
         "name": "ruccho",
         "url": "https://ruccho.com"
-    }
+    },
+    "samples": [
+        {
+            "displayName": "Basic",
+            "description": "A panel with text and a button handled through the EventSystem.",
+            "path": "Samples~/Basic"
+        },
+        {
+            "displayName": "Custom Shader",
+            "description": "A custom material for elements, built on Yaui.hlsl.",
+            "path": "Samples~/CustomShader"
+        },
+        {
+            "displayName": "Controls",
+            "description": "Buttons, toggles, a slider, input fields and a scroll view, handled through the EventSystem.",
+            "path": "Samples~/Controls"
+        }
+    ]
 }
