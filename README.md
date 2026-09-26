@@ -13,7 +13,7 @@ Yet Another Unity UI: a fast, Flexbox-based UI system for Unity,<br>built on Gam
 English | [日本語](README.ja.md)
 
 
-<img src="docs/static/img/hero.png" alt="YAUI - Yet Another Unity UI">
+<img src="docs/static/img/hero.png" alt="YAUI - Yet Another Unity UI" width="800">
 </div>
 
 ## Why YAUI?

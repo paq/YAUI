@@ -12,7 +12,7 @@ Yet Another Unity UI: GameObject の上に構築された、<br>高速で Flexbo
 
 [English](README.md) | 日本語
 
-<img src="docs/static/img/hero.png" alt="YAUI - Yet Another Unity UI">
+<img src="docs/static/img/hero.png" alt="YAUI - Yet Another Unity UI" width="800">
 </div>
 
 ## なぜ YAUI か
