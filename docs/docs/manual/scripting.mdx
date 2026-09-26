@@ -1,0 +1,62 @@
+---
+title: Scripting and Animation
+sidebar_position: 8
+---
+
+# Scripting and Animation
+
+## Setters
+
+Change elements with the setters of their properties. A setter writes the change directly into the data that YAUI sends to the GPU, and marks only what it affects:
+
+| Change | Cost |
+|---|---|
+| Colors, box style, render transform, opacity, tint | Written at once. Nothing is rebuilt and the layout does not run. |
+| Layout style (and the border width) | The layout runs again, only for the [boundary](./layout.mdx#layout-boundaries) that contains the element. |
+| Text properties | The text is generated again. The layout runs again only if the text's size changed. |
+| Hierarchy (adding, removing, reordering, enabling elements) | The draw order of the panel is rebuilt. |
+
+When nothing changes, YAUI costs almost nothing per frame.
+
+```csharp
+element.BackgroundColor = Color.red;      // no layout
+element.Translate = new Vector2(0f, -8f); // no layout
+
+var layout = element.Layout;              // structs: read, change, write back
+layout.Width = Length.Percent(50f);
+element.Layout = layout;                  // layout of the boundary
+
+text.Text = "Hello";                      // generated with the other changed texts
+```
+
+## Animator and Timeline
+
+Animator and Timeline can animate the serialized fields of elements, such as `box.BackgroundColor`, `renderTransform.Translate`, `opacity` or `layout.Width.Value`. YAUI detects these writes (through `OnDidApplyAnimationProperties`) and synchronizes the element. Changes in the Inspector (with Undo) are synchronized the same way.
+
+For the best performance, animate the render transform, opacity and colors rather than layout properties: they never run the layout.
+
+## Frame pipeline
+
+YAUI splits the work of a frame so that the heavy parts run on worker threads while your code runs:
+
+1. **Update, Animator, Timeline, LateUpdate**: setters write the changes and mark them.
+2. **Start of PreLateUpdate**: texts changed so far start generating on worker threads.
+3. **Start of PostLateUpdate** (the deadline): changed structures and styles are applied, and the layout is scheduled on a worker thread.
+4. **Right before rendering**: the results are applied, transforms are propagated (Burst) and the changed data is uploaded to the GPU.
+
+Changes made after `LateUpdate` appear in the next frame. Hit tests use the state that was last rendered.
+
+If you need the result of the changes within the same frame (for example the size of a text), call `YauiPanel.ForceUpdate()`. See [Layout](./layout.mdx#reading-the-result).
+
+## Creating elements from scripts
+
+Elements are ordinary components. Instantiate prefabs, or add components to new GameObjects under a panel:
+
+```csharp
+var go = new GameObject("Item", typeof(YauiElement));
+go.transform.SetParent(list.transform, false);
+var item = go.GetComponent<YauiElement>();
+item.BackgroundColor = Color.white;
+```
+
+An element registers with its panel when it is enabled, and releases its data when it is disabled or destroyed. Elements work in Edit mode too (`ExecuteAlways`).

@@ -1,0 +1,20 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+    <!--
+    Only for the API reference: docfx reads the runtime sources of the package through this project. Unity's
+    assemblies are not referenced, so their types are left unresolved (docfx allows the compilation errors).
+    -->
+    <PropertyGroup>
+        <TargetFramework>netstandard2.1</TargetFramework>
+        <AssemblyName>Yaui</AssemblyName>
+        <LangVersion>9.0</LangVersion>
+        <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+        <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
+        <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    </PropertyGroup>
+
+    <ItemGroup>
+        <Compile Include="../../Packages/com.ruccho.yaui/Runtime/**/*.cs" />
+    </ItemGroup>
+
+</Project>

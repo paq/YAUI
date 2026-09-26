@@ -1,0 +1,3 @@
+[submodule "docs/DocFxMarkdownGen"]
+	path = docs/api-gen/DocFxMarkdownGen
+	url = https://github.com/ruccho/DocFxMarkdownGen.git

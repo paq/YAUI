@@ -1,0 +1,92 @@
+---
+title: Layout
+sidebar_position: 3
+---
+
+# Layout
+
+YAUI lays out elements with **Flexbox**, using a port of [Yoga](https://www.yogalayout.dev/). If you know CSS Flexbox or UI Toolkit, you already know most of it. The layout runs on a worker thread with Burst.
+
+The layout properties of an element are in `YauiElement.Layout` (`LayoutStyle`). `LayoutStyle` is a struct: read it, change it and write it back.
+
+```csharp
+var layout = element.Layout;
+layout.Direction = FlexDirection.Row;
+layout.Width = Length.Percent(50f);
+layout.Padding = new Edges(16f);
+layout.Gap = new Vector2(8f, 0f);
+element.Layout = layout;
+```
+
+## Lengths
+
+A `Length` is a value and a unit:
+
+| Unit | Example | Meaning |
+|---|---|---|
+| `Auto` | `Length.Auto` | Decided by the layout. For min and max sizes, no limit. |
+| `Point` | `Length.Points(120f)` or just `120f` | Canvas units. A `float` converts to points. |
+| `Percent` | `Length.Percent(50f)` | Percent of the parent's size |
+
+In the Inspector, type `auto`, `120` or `50%`.
+
+`Edges` holds a length for each side (left, top, right, bottom), for margins, paddings and insets. `new Edges(all)`, `new Edges(horizontal, vertical)` and `new Edges(left, top, right, bottom)` create them.
+
+## Properties
+
+| Property | Description | Default |
+|---|---|---|
+| `Direction` | The main axis: `Row`, `Column`, `RowReverse`, `ColumnReverse` | `Column` |
+| `Wrap` | Whether children wrap onto more lines: `NoWrap`, `Wrap`, `WrapReverse` | `NoWrap` |
+| `JustifyContent` | Placement of children along the main axis | `FlexStart` |
+| `AlignItems` | Alignment of children across the main axis | `Stretch` |
+| `AlignSelf` | Overrides the parent's `AlignItems` for this element | `Auto` |
+| `AlignContent` | Placement of the lines when wrapping | `FlexStart` |
+| `Grow`, `Shrink`, `Basis` | How the element grows and shrinks along the main axis | `0`, `1`, `Auto` |
+| `Width`, `Height` | Size | `Auto` |
+| `MinWidth`, `MinHeight`, `MaxWidth`, `MaxHeight` | Size limits | `Auto` (no limit) |
+| `Margin` | Space outside the box | `0` |
+| `Padding` | Space inside the box, around the children | `0` |
+| `Gap` | Space between children. x: between columns, y: between rows | `(0, 0)` |
+| `Position` | `Relative` or `Absolute` | `Relative` |
+| `Inset` | Offsets from the parent's edges (for `Absolute`) or from the normal position (for `Relative`) | `Auto` |
+
+The defaults follow CSS, except that the direction is a column, as in Yoga and UI Toolkit.
+
+The `BorderWidth` of the [box style](./elements.mdx#box-style) is also part of the layout: like in CSS, it insets the children.
+
+### Absolute positioning
+
+An element with `Position = Absolute` is taken out of the flex layout of its parent and placed by its insets, relative to the parent's box. For example, to cover the whole parent:
+
+```csharp
+var layout = overlay.Layout;
+layout.Position = PositionType.Absolute;
+layout.Inset = new Edges(0f);
+overlay.Layout = layout;
+```
+
+## What runs the layout again
+
+Only the layout properties (and the border width) run the layout again. The box style (except the border width), the render transform, opacity, tint and colors do not. Animate them freely.
+
+Texts are measured by the layout when their size is `Auto`. When a text changes, it is generated again, and the layout runs again only if its size changed.
+
+## Layout boundaries
+
+An element whose `Width` and `Height` are both fixed (in points) is a **layout boundary**. A change inside a boundary cannot change the boundary's own size, so it does not spread to the rest of the tree: only the subtree of the boundary is laid out again. Independent boundaries are laid out in parallel.
+
+Give fixed sizes to containers whose size does not depend on their content, such as list items, cells, cards and HUD widgets. This keeps the cost of a change proportional to the size of the change.
+
+## Reading the result
+
+The layout of the changes made in a frame runs after `LateUpdate`, and its result is applied right before rendering. See [Scripting](./scripting.mdx#frame-pipeline).
+
+- `YauiElement.LayoutRect` is the box from the last layout, relative to the parent's box, in canvas units.
+- To get the layout of changes made in the same frame, call `YauiPanel.ForceUpdate()` first. It lays out, generates the texts and uploads all panels at once, like uGUI's `Canvas.ForceUpdateCanvases()`. Use it only when needed: it loses the overlap with other work that the frame pipeline has.
+
+```csharp
+label.Text = "A longer text";
+YauiPanel.ForceUpdate();
+var size = label.LayoutRect.size; // The size with the new text
+```

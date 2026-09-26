@@ -1,0 +1,38 @@
+---
+title: Clipping and Masks
+sidebar_position: 6
+---
+
+# Clipping and Masks
+
+YAUI has two ways to hide the parts of the descendants that are outside of an element.
+
+| | `ClipChildren` | `YauiMask` |
+|---|---|---|
+| Shape | Rectangle or rounded rectangle (the box with its corner radii) | The box with its corner radii, or the alpha of a sprite |
+| Nesting | Rectangles nest to any depth. Only the nearest rounded clip applies. | Any depth (up to 255) |
+| Cost | Does not break the batch | Splits the draw call at the mask's boundaries |
+| Edges | Rounded clips are anti-aliased | Not anti-aliased |
+
+Prefer `ClipChildren` when it is enough.
+
+## ClipChildren
+
+Set `YauiElement.ClipChildren` to clip the descendants to the element's box, like `overflow: hidden` in CSS. Clipping is stored as data of each element, so it does not break the batch.
+
+- Axis-aligned rectangle clips of all ancestors are intersected. They are applied by shrinking the quads in the vertex shader, which costs nothing per pixel.
+- If the element has corner radii, the clip is applied per pixel. Only the **nearest** rounded clip applies: a rounded clip inside another rounded clip does not clip to the outer one. Use `YauiMask` for that.
+- A rotated element clips to its bounding rectangle, not to its rotated shape. Use `YauiMask` to clip to the rotated shape.
+
+## YauiMask
+
+Add `YauiMask` to an element to mask its descendants with the stencil buffer:
+
+- On a `YauiElement`, the shape is the box with its corner radii.
+- On a `YauiImage` with a sprite, the shape is the sprite's alpha.
+
+Masks nest to any depth. `ShowMaskGraphic` decides whether the element itself (its box, image or text) is drawn, or only used as the mask.
+
+Hit tests are clipped to the bounding rectangle of the mask.
+
+Custom materials inside a mask must support the stencil. See [Custom Shaders](./custom-shaders.mdx#masks).

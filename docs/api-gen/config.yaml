@@ -1,0 +1,6 @@
+# DocFxMarkdownGen: turns the docfx metadata (yaml) into the Docusaurus pages of the API reference (../api).
+outputPath: ../api
+yamlPath: ./yaml
+indexSlug: /
+typesGrouping:
+  enabled: true

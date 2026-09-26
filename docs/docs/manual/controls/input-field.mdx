@@ -1,0 +1,61 @@
+---
+title: Input Field
+sidebar_position: 4
+---
+
+# Input Field
+
+`YauiInputField` is an editable text. It shows its text in a `YauiText`, with a caret and a selection, and supports:
+
+- Keyboard editing, with the clipboard
+- IME composition
+- The on-screen keyboard of mobile platforms
+
+Selecting the input field starts editing. Enter (in a single line field), Escape, or deselecting it ends editing.
+
+## Setup
+
+```
+InputField        YauiElement (the frame), YauiInputField
+└─ TextArea       YauiElement (ClipChildren)
+   ├─ Placeholder YauiText
+   └─ Text        YauiText (the TextComponent)
+```
+
+The input field creates the caret and the selection as elements next to the text, in its parent (they are not saved). Make that parent clip its children (`ClipChildren`), so that long texts scroll inside it.
+
+## Properties
+
+| Member | Description |
+|---|---|
+| `Text` | The text. `SetTextWithoutNotify` changes it without invoking `OnValueChanged`. |
+| `TextComponent` | The `YauiText` that shows the text |
+| `Placeholder` | Shown while the text is empty (the input field drives its opacity) |
+| `CharacterLimit` | The maximum number of characters, or 0 for no limit |
+| `LineType` | `SingleLine`, `MultiLineSubmit` (wraps, Enter submits) or `MultiLineNewline` (wraps, Enter starts a new line) |
+| `ContentType` | `Standard`, `IntegerNumber`, `DecimalNumber`, `Alphanumeric` or `Password` (shown as asterisks, not copied) |
+| `KeyboardType` | The type of the on-screen keyboard |
+| `ReadOnly` | Whether the text can be selected but not changed |
+| `SelectAllOnFocus` | Whether the whole text is selected when editing starts |
+| `CaretColor`, `CaretWidth`, `CaretBlinkRate`, `SelectionColor` | The look of the caret and the selection |
+
+## Events
+
+| Event | Invoked |
+|---|---|
+| `OnValueChanged` | When the text changes |
+| `OnEndEdit` | When editing ends |
+| `OnSubmitText` | When Enter (or Done on the on-screen keyboard) ends editing |
+
+## Scripting
+
+| Member | Description |
+|---|---|
+| `ActivateInputField()`, `DeactivateInputField()` | Starts and ends editing |
+| `IsFocused` | Whether the field is being edited |
+| `CaretPosition`, `SelectionAnchor` | The caret and the other end of the selection, as character indices |
+| `SelectAll()`, `SelectedText` | Selects the whole text, and the selected text |
+
+:::note
+Caret positions come from the text selection service of ATG. Without it, the field still edits text, but without a caret.
+:::

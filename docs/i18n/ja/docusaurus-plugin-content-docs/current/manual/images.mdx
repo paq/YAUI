@@ -1,0 +1,57 @@
+---
+title: 画像
+sidebar_position: 5
+---
+
+# 画像
+
+## YauiImage {#yauiimage}
+
+`YauiImage` は、[ボックス](./elements.mdx#box-style)の上に、コンテンツボックス (パディングとボーダーの内側) いっぱいにスプライトを描画します。背景、ボーダー、影を同時に持つこともできます。
+
+| プロパティ | 説明 |
+|---|---|
+| `Sprite` | スプライト |
+| `Color` | スプライトの色に乗算されます |
+| `Type` | `Simple`、`Sliced`、`Filled` |
+| `BorderScale` | Sliced: スプライトのボーダーの 1 ピクセルあたりのキャンバス単位 |
+| `FillMethod`, `FillOrigin`, `FillAmount`, `FillClockwise` | Filled: 画像のどの部分を描画するか |
+| `OverrideSprite` | 設定している間、`Sprite` を変更せずに代わりに描画されます (保存されません) |
+
+### 種類 {#types}
+
+- **Simple** はスプライトをコンテンツボックスいっぱいに引き伸ばします。ボックスの角丸は画像にも適用されます。
+- **Sliced** は 9 スライスです。スプライトのボーダー (Sprite Editor で設定) はサイズを保ち、中央が伸びます。
+- **Filled** は uGUI のフィル画像と同じように、シンプルな画像の一部を描画します。
+  - `Horizontal` と `Vertical` は軸に沿って塗ります。
+  - `Radial90`、`Radial180`、`Radial360` は、角を中心とした 4 分の 1 円、辺の中点を中心とした半円、中心を中心とした円で塗ります。
+  - `FillOrigin` は、方法に対応する列挙型の値です: `FillOriginHorizontal`、`FillOriginVertical`、`FillOrigin90`、`FillOrigin180`、`FillOrigin360`。
+
+```csharp
+image.Type = ImageType.Filled;
+image.FillMethod = FillMethod.Radial360;
+image.FillOrigin = (int)FillOrigin360.Top;
+image.FillAmount = 0.75f;
+```
+
+## YauiRawImage {#yauirawimage}
+
+`YauiRawImage` は任意のテクスチャ (レンダーテクスチャ、動画、スプライトではないテクスチャ) を描画します。`UvRect` で描画するテクスチャの範囲を 0〜1 の UV (Y は上向き) で指定します。テクスチャは繰り返されません。ボックスの角丸は画像にも適用されます。
+
+## テクスチャとドローコール {#textures-and-draw-calls}
+
+YAUI の 1 回のドローコールでは最大 **8 枚のテクスチャ**を使えます。パネルがそれより多くのテクスチャを使うと、描画が分割されます。フォントアトラスも数に含まれます。
+
+テクスチャの数を抑えるため、YAUI は UI Toolkit と同じように、小さなスプライトを**動的アトラス**にパックします。設定は `YauiTextureAtlas` にあります。
+
+| 設定 | 説明 | 既定値 |
+|---|---|---|
+| `Enabled` | 小さなスプライトをパックするかどうか | `true` |
+| `MaxSubTextureSize` | このサイズ (テクセル単位、縦横とも) 以下のスプライトをパックします | `64` |
+| `PageSize` | アトラスのページのサイズ。必要に応じてページが追加されます。 | `1024` |
+
+設定の変更は、その後に追加されたスプライトに適用されます。スプライトは GPU 上でページに描き込まれるため、圧縮されたスプライトもパックできます。
+
+次のスプライトはパックされません: `MaxSubTextureSize` より大きいスプライト、Read/Write が有効なテクスチャ、成分あたり 8 ビットを超えるフォーマット、スプライトアトラスに Tight でパックされたスプライト。
+
+パックされないスプライトは、それ自身のテクスチャ (スプライトアトラスにパックされていればそのアトラス) から描画されます。一緒に表示するスプライトは同じスプライトアトラスに入れて、テクスチャの数を抑えてください。`YauiRawImage` のテクスチャはパックされず、それぞれがテクスチャスロットを 1 つ使います。

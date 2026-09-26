@@ -1,0 +1,46 @@
+---
+title: ドロップダウン
+sidebar_position: 5
+---
+
+# ドロップダウン
+
+`YauiDropdown` は、uGUI の Dropdown と同じように、リストから選択肢を 1 つ選びます。
+
+開くと、ドロップダウンは**テンプレート** (非アクティブの要素。通常はスクロールビュー) を複製し、その複製をドロップダウンの下、パネル内の他のすべてのものより手前に表示します。テンプレートには**項目**が 1 つ含まれます。項目はテキスト (と、必要なら画像) を持つトグルです。項目は選択肢ごとに複製されます。リストの外を押すとリストは閉じます。
+
+## セットアップ {#setup}
+
+```
+Dropdown              YauiElement, YauiDropdown
+├─ Label              YauiText (CaptionText)
+└─ Template           YauiElement (inactive), YauiScrollView
+   └─ Content         YauiElement
+      └─ Item         YauiElement, YauiToggle
+         ├─ Check     YauiElement (the toggle's Graphic)
+         └─ ItemLabel YauiText (ItemText)
+```
+
+| メンバー | 説明 |
+|---|---|
+| `Template` | リストとして複製される非アクティブの要素 |
+| `CaptionText`, `CaptionImage` | 選択中の選択肢のテキストと画像を表示します |
+| `ItemText`, `ItemImage` | テンプレート内の項目のテキストと画像。`ItemText` を囲むトグルが項目になります。 |
+| `Options` | 選択肢 (`OptionData`: テキストと省略可能なスプライト) |
+| `Value` | 選択中の選択肢のインデックス |
+| `OnValueChanged` | 値が変わったときに新しいインデックスで呼び出されます |
+
+## スクリプティング {#scripting}
+
+```csharp
+dropdown.ClearOptions();
+dropdown.AddOptions(new[] { "Apple", "Banana", "Cherry" });
+dropdown.OnValueChanged.AddListener(index => Debug.Log(dropdown.Options[index].Text));
+```
+
+| メンバー | 説明 |
+|---|---|
+| `AddOptions(...)`, `ClearOptions()` | 選択肢を変更します |
+| `SetValueWithoutNotify(index)` | `OnValueChanged` を呼び出さずに値を変更します |
+| `RefreshShownValue()` | 選択肢を直接変更した後に、キャプションを更新します |
+| `Show()`, `Hide()`, `IsExpanded` | リストを開閉します |

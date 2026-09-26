@@ -1,0 +1,51 @@
+---
+title: Button and Toggle
+sidebar_position: 1
+---
+
+# Button and Toggle
+
+## YauiButton
+
+`YauiButton` invokes `OnClick` when it is clicked, or submitted with a gamepad or a keyboard.
+
+```
+Button     YauiElement (the background), YauiButton
+└─ Label   YauiText
+```
+
+```csharp
+button.OnClick.AddListener(() => Debug.Log("Clicked"));
+```
+
+## YauiToggle
+
+`YauiToggle` switches on and off when it is clicked or submitted. While it is on, it shows its `Graphic` (for example a checkmark), by driving the graphic's opacity.
+
+```
+Toggle       YauiElement, YauiToggle
+├─ Box       YauiElement (the frame)
+│  └─ Check  YauiImage (the Graphic)
+└─ Label     YauiText
+```
+
+| Member | Description |
+|---|---|
+| `IsOn` | Whether the toggle is on |
+| `Graphic` | The element shown while on |
+| `ToggleTransition` | `Fade` fades the graphic in and out; `None` shows and hides it at once |
+| `Group` | The toggle group of this toggle, if any |
+| `OnValueChanged` | Invoked with the new value when it changes |
+| `SetIsOnWithoutNotify(value)` | Changes the value without invoking `OnValueChanged` |
+
+## YauiToggleGroup
+
+A `YauiToggleGroup` makes its toggles exclusive, like radio buttons: switching one on switches the others off. Set the `Group` of each toggle to the group.
+
+| Member | Description |
+|---|---|
+| `AllowSwitchOff` | Whether clicking the toggle that is on switches it off, leaving none on |
+| `ActiveToggle` | The toggle that is on, or null |
+| `Toggles` | The toggles of the group |
+| `AnyTogglesOn()` | Whether a toggle is on |
+| `SetAllTogglesOff(notify)` | Switches all toggles off |

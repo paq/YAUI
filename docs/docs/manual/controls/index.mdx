@@ -1,0 +1,56 @@
+---
+title: Controls
+sidebar_position: 7.5
+---
+
+# Controls
+
+YAUI includes the common controls of uGUI, rebuilt on YAUI elements:
+
+| Control | Description |
+|---|---|
+| [`YauiButton`](./button-and-toggle.mdx#yauibutton) | Invokes an event when clicked |
+| [`YauiToggle`](./button-and-toggle.mdx#yauitoggle), [`YauiToggleGroup`](./button-and-toggle.mdx#yauitogglegroup) | On/off switches, and radio buttons |
+| [`YauiSlider`](./slider-and-scrollbar.mdx#yauislider) | Picks a value in a range |
+| [`YauiScrollbar`](./slider-and-scrollbar.mdx#yauiscrollbar) | Shows and changes a scroll position |
+| [`YauiScrollView`](./scroll-view.mdx) | Scrolls content inside a viewport |
+| [`YauiInputField`](./input-field.mdx) | Edits text, with IME and on-screen keyboards |
+| [`YauiDropdown`](./dropdown.mdx) | Picks one option from a list |
+
+Controls are components added next to a `YauiElement`. They do not draw anything themselves: build their look from elements, and link the parts (a handle, a fill, a label...) in the Inspector. The **Controls** sample has a ready-made example of each.
+
+Controls need a `YauiRaycaster` on the panel and an EventSystem in the scene. See [Input](../input.mdx).
+
+## Selectables
+
+All controls except the scroll view derive from `YauiSelectable`, the equivalent of uGUI's `Selectable`. A selectable follows the pointer and the EventSystem's selection, and shows its state (`Normal`, `Highlighted`, `Pressed`, `Selected` or `Disabled`).
+
+`Interactable` turns the control on and off. A control that is not interactable shows the `Disabled` state and ignores input.
+
+### Transitions
+
+A transition shows the state on the **target element** (`TargetElement`, or the selectable's own element when not set):
+
+| Transition | Effect |
+|---|---|
+| `ColorTint` | Multiplies the colors of the target by the color of the state (`YauiElement.Tint`), fading over `FadeDuration` seconds |
+| `SpriteSwap` | Draws the sprite of the state on the target image (`YauiImage.OverrideSprite`) |
+| `Animation` | Sets the trigger of the state on the Animator of the selectable's GameObject |
+| `None` | No effect |
+
+The color tint affects only the target element itself, not its children: tint a label separately if needed.
+
+### Navigation
+
+Selectables can be selected with a gamepad or a keyboard, through the move events of the EventSystem. `Navigation` sets how:
+
+| Mode | Behavior |
+|---|---|
+| `Automatic` | Moves to the nearest selectable of the panel in the direction of the move |
+| `Horizontal`, `Vertical` | Like `Automatic`, on one axis only |
+| `Explicit` | Moves to the selectables set for each direction (`Up`, `Down`, `Left`, `Right`) |
+| `None` | No navigation |
+
+With `WrapAround`, moving past the last selectable in a direction selects the first one. In the automatic modes, the selectables set for a direction are used where they are set.
+
+To select a control from a script, call `Select()`.

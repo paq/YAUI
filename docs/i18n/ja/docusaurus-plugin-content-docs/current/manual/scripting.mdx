@@ -1,0 +1,62 @@
+---
+title: スクリプティングとアニメーション
+sidebar_position: 8
+---
+
+# スクリプティングとアニメーション
+
+## セッター {#setters}
+
+要素はプロパティのセッターで変更します。セッターは、YAUI が GPU に送るデータに変更を直接書き込み、影響を受けるものだけをマークします。
+
+| 変更 | コスト |
+|---|---|
+| 色、ボックスのスタイル、描画変換、不透明度、ティント | すぐに書き込まれます。何も再構築されず、レイアウトも実行されません。 |
+| レイアウトのスタイル (とボーダーの幅) | 要素を含む[境界](./layout.mdx#layout-boundaries)についてだけ、レイアウトが再実行されます。 |
+| テキストのプロパティ | テキストが再生成されます。テキストのサイズが変わった場合にだけ、レイアウトが再実行されます。 |
+| 階層 (要素の追加、削除、並べ替え、有効化) | パネルの描画順が作り直されます。 |
+
+何も変わらなければ、YAUI のフレームごとのコストはほぼゼロです。
+
+```csharp
+element.BackgroundColor = Color.red;      // レイアウトなし
+element.Translate = new Vector2(0f, -8f); // レイアウトなし
+
+var layout = element.Layout;              // 構造体: 読み出し、変更し、書き戻す
+layout.Width = Length.Percent(50f);
+element.Layout = layout;                  // 境界のレイアウト
+
+text.Text = "Hello";                      // 他の変更されたテキストと一緒に生成
+```
+
+## Animator と Timeline {#animator-and-timeline}
+
+Animator と Timeline は、`box.BackgroundColor`、`renderTransform.Translate`、`opacity`、`layout.Width.Value` などの、要素のシリアライズされたフィールドをアニメーションさせることができます。YAUI はこれらの書き込みを (`OnDidApplyAnimationProperties` を通して) 検知し、要素を同期します。Inspector での変更 (Undo を含む) も同じように同期されます。
+
+最高のパフォーマンスを得るには、レイアウトのプロパティではなく、描画変換、不透明度、色をアニメーションさせてください。これらはレイアウトを実行しません。
+
+## フレームパイプライン {#frame-pipeline}
+
+YAUI はフレームの処理を分割し、重い部分をコードの実行中にワーカースレッドで実行します。
+
+1. **Update、Animator、Timeline、LateUpdate**: セッターが変更を書き込み、マークします。
+2. **PreLateUpdate の開始時**: それまでに変更されたテキストが、ワーカースレッドで生成を始めます。
+3. **PostLateUpdate の開始時** (締め切り): 変更された構造とスタイルが適用され、レイアウトがワーカースレッドにスケジュールされます。
+4. **描画の直前**: 結果が適用され、変換が伝播され (Burst)、変更されたデータが GPU にアップロードされます。
+
+`LateUpdate` の後に行った変更は次のフレームに反映されます。ヒットテストは最後に描画された状態を使います。
+
+同じフレーム内で変更の結果 (テキストのサイズなど) が必要なら、`YauiPanel.ForceUpdate()` を呼んでください。[レイアウト](./layout.mdx#reading-the-result)を参照してください。
+
+## スクリプトからの要素の作成 {#creating-elements-from-scripts}
+
+要素は普通のコンポーネントです。Prefab をインスタンス化するか、パネルの下の新しい GameObject にコンポーネントを追加してください。
+
+```csharp
+var go = new GameObject("Item", typeof(YauiElement));
+go.transform.SetParent(list.transform, false);
+var item = go.GetComponent<YauiElement>();
+item.BackgroundColor = Color.white;
+```
+
+要素は有効になったときにパネルに登録され、無効になるか破棄されたときにデータを解放します。要素は Edit モードでも動作します (`ExecuteAlways`)。

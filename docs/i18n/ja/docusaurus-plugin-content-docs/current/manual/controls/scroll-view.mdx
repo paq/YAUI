@@ -1,0 +1,55 @@
+---
+title: スクロールビュー
+sidebar_position: 3
+---
+
+# スクロールビュー
+
+`YauiScrollView` は、uGUI の ScrollRect と同じように、ドラッグ、スクロールホイール、スクロールバーで、**ビューポート**の要素の中で**内容**の要素をスクロールします。
+
+スクロールビューは内容を描画変換 (`YauiElement.Translate`) で動かします。スクロールでレイアウトが再実行されることはありません。
+
+## セットアップ {#setup}
+
+内容は独自のレイアウトを保ちます。縦スクロールの典型的な構成は次のとおりです。
+
+```
+ScrollView        YauiElement (ClipChildren), YauiScrollView
+└─ Content        YauiElement (Position Absolute, Inset Left 0 / Top 0, Width 100%)
+   ├─ Item
+   ├─ Item
+   └─ ...
+```
+
+- ビューポートは子をクリップします (`ClipChildren`)。`Viewport` を設定しなければ、スクロールビュー自身の要素がビューポートになります。
+- 内容はビューポートの左上に絶対配置された子です。縦スクロールでは、幅をビューポートの 100% にし、高さは `Auto` にして子に決めさせます。横スクロールでは幅と高さを入れ替えます。
+
+## プロパティ {#properties}
+
+| メンバー | 説明 |
+|---|---|
+| `Content`, `Viewport` | スクロールされる要素と、それを表示する要素 |
+| `Horizontal`, `Vertical` | スクロールする軸 |
+| `MovementType` | `Elastic` (端を越えて引っ張ると跳ね返る)、`Clamped` (端で止まる)、`Unrestricted` |
+| `Elasticity` | Elastic: 跳ね返るまでのおおよその秒数 |
+| `Inertia`, `DecelerationRate` | ドラッグの後も内容が動き続けるかどうかと、1 秒後に残る速度の割合 |
+| `ScrollSensitivity` | スクロールホイールの 1 段あたりのキャンバス単位 |
+| `HorizontalScrollbar`, `VerticalScrollbar` | スクロールビューが操作するスクロールバー。縦のものは向き `TopToBottom` を使います。 |
+| `OnValueChanged` | 正規化した位置が変わったときに呼び出されます |
+
+## スクリプトからのスクロール {#scrolling-from-scripts}
+
+| メンバー | 説明 |
+|---|---|
+| `ScrollPosition` | 内容が元の位置からどれだけスクロールしたか。キャンバス単位 (終端方向が正) |
+| `ScrollRange` | 各軸で内容がスクロールできる量 |
+| `NormalizedPosition` | 範囲に対する割合でのスクロール位置 (左上が 0) |
+| `Velocity` | 現在の速度 |
+| `StopMovement()` | 慣性を止めます |
+| `ScrollIntoView(element)` | 内容の子孫を表示するために、必要最小限だけスクロールします |
+
+## 入れ子のスクロールビュー {#nested-scroll-views}
+
+スクロールビューは、自分がスクロールできない軸のドラッグと、内容が収まっているときのスクロールホイールのイベントを、上位のスクロールビューに渡します。横方向のページャーの中の縦リストは、追加のコードなしで動作します。
+
+スクロールビューは項目を仮想化しません。[パフォーマンス](../performance.mdx#scroll-views)を参照してください。

@@ -1,0 +1,106 @@
+---
+title: Custom Shaders
+sidebar_position: 9
+---
+
+# Custom Shaders
+
+The uber shader covers most looks. When you need something else, set a custom material in `YauiElement.Material`. It draws the element's own primitives (its box and content, not its children).
+
+:::note
+A change of material between elements splits the draw call. Elements with the same material that are next to each other in the draw order are drawn together.
+:::
+
+## Writing a shader
+
+A shader for YAUI:
+
+1. Includes `Packages/com.ruccho.yaui/Runtime/Shaders/Yaui.hlsl`, the shared code of YAUI shaders.
+2. Declares two passes:
+   - `Overlay`, with the tag `"LightMode" = "YauiOverlay"` and the vertex function `VertOverlay`
+   - `World`, with the vertex function `VertWorld`
+3. Writes its own fragment function on the `Varyings` struct. It can call `FragImpl(i, world)` to get the result of the uber shader and change it.
+4. Uses premultiplied alpha blending (`Blend One OneMinusSrcAlpha`).
+
+This example from the **Custom Shader** sample tints the uber shader's result with a horizontal gradient:
+
+```hlsl
+Shader "Yaui/Samples/Gradient Tint"
+{
+    Properties
+    {
+        _ColorA ("Left", Color) = (1, 0.3, 0.6, 1)
+        _ColorB ("Right", Color) = (0.3, 0.6, 1, 1)
+
+        // Set by the renderer inside masks (YauiMask).
+        [HideInInspector] _YauiStencilRef ("Stencil Ref", Float) = 0
+        [HideInInspector] _YauiStencilComp ("Stencil Comparison", Float) = 8
+        [HideInInspector] _YauiStencilPass ("Stencil Pass", Float) = 0
+    }
+
+    HLSLINCLUDE
+    #pragma target 4.5
+    // Rotated quads and rounded clips are clipped per pixel only with this (it costs GPU time).
+    #define YAUI_PIXEL_CLIP
+    #include "Packages/com.ruccho.yaui/Runtime/Shaders/Yaui.hlsl"
+
+    float4 _ColorA;
+    float4 _ColorB;
+
+    half4 Tint(Varyings i, half4 color)
+    {
+        // local: position relative to the shape center, and its half size.
+        float t = saturate(i.local.x / max(i.local.z, 1e-4) * 0.5 + 0.5);
+        return color * half4(lerp(_ColorA.rgb, _ColorB.rgb, t), 1.0);
+    }
+
+    half4 FragTintOverlay(Varyings i) : SV_Target { return Tint(i, FragImpl(i, false)); }
+    half4 FragTintWorld(Varyings i) : SV_Target { return Tint(i, FragImpl(i, true)); }
+    ENDHLSL
+
+    SubShader
+    {
+        Tags { "RenderType" = "Transparent" "Queue" = "Transparent" "RenderPipeline" = "UniversalPipeline" }
+        Blend One OneMinusSrcAlpha
+        ZWrite Off
+        Cull Off
+        Stencil
+        {
+            Ref [_YauiStencilRef]
+            Comp [_YauiStencilComp]
+            Pass [_YauiStencilPass]
+        }
+
+        Pass
+        {
+            Name "Overlay"
+            Tags { "LightMode" = "YauiOverlay" }
+            ZTest Always
+
+            HLSLPROGRAM
+            #pragma vertex VertOverlay
+            #pragma fragment FragTintOverlay
+            ENDHLSL
+        }
+
+        Pass
+        {
+            Name "World"
+            ZTest LEqual
+
+            HLSLPROGRAM
+            #pragma vertex VertWorld
+            #pragma fragment FragTintWorld
+            ENDHLSL
+        }
+    }
+}
+```
+
+## Per-pixel clipping
+
+Rotated quads and rounded [clips](./clipping-and-masks.mdx#clipchildren) need a test per pixel. Define `YAUI_PIXEL_CLIP` before including `Yaui.hlsl` to enable it. It adds varyings, which cost GPU time on mobile, so leave it out if the elements with your material are never rotated or inside a rounded clip. (The uber shader enables it only for the panels that need it.)
+
+## Masks
+
+To be masked by a [`YauiMask`](./clipping-and-masks.mdx#yauimask), the shader declares the `_YauiStencilRef`, `_YauiStencilComp` and `_YauiStencilPass` properties and the `Stencil` block, as in the example above. The renderer sets them.

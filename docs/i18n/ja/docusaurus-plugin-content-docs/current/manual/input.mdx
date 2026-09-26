@@ -1,0 +1,59 @@
+---
+title: 入力
+sidebar_position: 7
+---
+
+# 入力
+
+YAUI は入力に Unity の **EventSystem** を使います。ポインターイベント、選択、ゲームパッドやキーボードによるナビゲーション、Input System UI Input Module は、すべて uGUI と同じように動作します。
+
+## セットアップ {#setup}
+
+1. シーンに EventSystem を追加します (**GameObject > UI > Event System**)。
+2. 入力を受け取る各パネルの GameObject に `YauiRaycaster` を追加します。
+
+`YauiRaycaster` は uGUI の `GraphicRaycaster` と同じく `BaseRaycaster` なので、YAUI のパネルと uGUI のキャンバスは同じシーンで入力を受け取れます。オーバーレイのパネルはカメラが描画するすべてのものより手前にあり、`SortOrder` で順序が決まります。ワールド空間のパネルは、パネルの `EventCamera` を通して見られます。
+
+## イベントの受け取り {#receiving-events}
+
+イベントはポインターの下にある最も手前の要素の GameObject に送られ、uGUI と同じように、処理する最初の GameObject まで階層を**バブルアップ**します。要素のコンポーネントに、通常の EventSystem のインターフェースを実装してください。
+
+```csharp
+using UnityEngine;
+using UnityEngine.EventSystems;
+using Yaui;
+
+[RequireComponent(typeof(YauiElement))]
+public class HoverHighlight : MonoBehaviour, IPointerEnterHandler, IPointerExitHandler
+{
+    YauiElement element;
+
+    void Awake() => element = GetComponent<YauiElement>();
+
+    public void OnPointerEnter(PointerEventData eventData) => element.BackgroundColor = Color.yellow;
+    public void OnPointerExit(PointerEventData eventData) => element.BackgroundColor = Color.white;
+}
+```
+
+ボタン、トグル、スライダーなどのよく使うウィジェットには、[コントロール](./controls/index.mdx)を使ってください。
+
+## ヒットの対象 {#what-receives-hits}
+
+要素にヒットするのは、次の場合です。
+
+- `RaycastTarget` が有効 (既定) で、かつ
+- 何かを描画している: 見えるボックス (背景、ボーダー、影)、テキスト、画像のいずれか。
+
+見えるボックスを持たないコンテナはポインターを遮らないため、レイアウト用のコンテナの `RaycastTarget` を無効にする必要はありません。見えない領域でヒットを受け取るには、ごく小さいアルファの背景色を設定してください。
+
+ヒットは、要素の変換後のボックスを祖先のクリップで切ったものに対して判定されます。回転した要素も正確に判定されます。ヒットテストは最後に描画された状態を使います。
+
+ヒットテストは一様グリッドを使います。グリッドは Burst で作られ、形状が変わったところだけが更新されます。
+
+## スクリプトからのヒットテスト {#hit-testing-from-scripts}
+
+`YauiPanel.HitTest(screenPosition)` は、画面上の位置でヒットを受け取る最も手前の要素を返します。なければ null を返します。
+
+```csharp
+var element = panel.HitTest(Input.mousePosition);
+```

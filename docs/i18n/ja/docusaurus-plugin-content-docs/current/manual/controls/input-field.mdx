@@ -1,0 +1,61 @@
+---
+title: 入力欄
+sidebar_position: 4
+---
+
+# 入力欄
+
+`YauiInputField` は編集可能なテキストです。テキストを `YauiText` に、キャレットと選択範囲と一緒に表示し、次の機能に対応しています。
+
+- クリップボードを含むキーボードでの編集
+- IME の変換
+- モバイルプラットフォームのオンスクリーンキーボード
+
+入力欄を選択すると編集が始まります。Enter (1 行の入力欄の場合)、Escape、または選択の解除で編集が終わります。
+
+## セットアップ {#setup}
+
+```
+InputField        YauiElement (the frame), YauiInputField
+└─ TextArea       YauiElement (ClipChildren)
+   ├─ Placeholder YauiText
+   └─ Text        YauiText (the TextComponent)
+```
+
+入力欄は、キャレットと選択範囲をテキストの隣 (その親の中) に要素として作成します (保存はされません)。長いテキストがその中でスクロールするように、その親で子をクリップしてください (`ClipChildren`)。
+
+## プロパティ {#properties}
+
+| メンバー | 説明 |
+|---|---|
+| `Text` | テキスト。`SetTextWithoutNotify` は `OnValueChanged` を呼び出さずに変更します。 |
+| `TextComponent` | テキストを表示する `YauiText` |
+| `Placeholder` | テキストが空の間に表示されます (不透明度は入力欄が操作します) |
+| `CharacterLimit` | 最大の文字数。0 なら制限なし |
+| `LineType` | `SingleLine`、`MultiLineSubmit` (折り返し、Enter でサブミット)、`MultiLineNewline` (折り返し、Enter で改行) |
+| `ContentType` | `Standard`、`IntegerNumber`、`DecimalNumber`、`Alphanumeric`、`Password` (アスタリスクで表示し、コピーされない) |
+| `KeyboardType` | オンスクリーンキーボードの種類 |
+| `ReadOnly` | テキストを選択できるが変更できないかどうか |
+| `SelectAllOnFocus` | 編集の開始時にテキスト全体を選択するかどうか |
+| `CaretColor`, `CaretWidth`, `CaretBlinkRate`, `SelectionColor` | キャレットと選択範囲の見た目 |
+
+## イベント {#events}
+
+| イベント | 呼び出されるとき |
+|---|---|
+| `OnValueChanged` | テキストが変わったとき |
+| `OnEndEdit` | 編集が終わったとき |
+| `OnSubmitText` | Enter (またはオンスクリーンキーボードの完了) で編集が終わったとき |
+
+## スクリプティング {#scripting}
+
+| メンバー | 説明 |
+|---|---|
+| `ActivateInputField()`, `DeactivateInputField()` | 編集を開始・終了します |
+| `IsFocused` | 編集中かどうか |
+| `CaretPosition`, `SelectionAnchor` | キャレットと、選択範囲のもう一方の端。文字のインデックスです |
+| `SelectAll()`, `SelectedText` | テキスト全体を選択します。選択中のテキスト |
+
+:::note
+キャレットの位置は ATG のテキスト選択サービスから得ます。それがない場合でもテキストは編集できますが、キャレットは表示されません。
+:::

@@ -1,0 +1,17 @@
+{
+  "metadata": [
+    {
+      "src": [
+        {
+          "src": ".",
+          "files": [
+            "Yaui.csproj"
+          ]
+        }
+      ],
+      "dest": "yaml",
+      "namespaceLayout": "flattened",
+      "allowCompilationErrors": true
+    }
+  ]
+}

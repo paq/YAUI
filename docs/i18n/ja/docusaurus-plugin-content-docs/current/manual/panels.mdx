@@ -1,0 +1,54 @@
+---
+title: パネル
+sidebar_position: 1
+---
+
+# パネル
+
+**パネル** (`YauiPanel`) は YAUI のツリーのルートです。パネル自身も要素です。`YauiPanel` は同じ GameObject に `YauiElement` を必要とし、その要素がレイアウトのルートのボックスになります。要素は、階層上で最も近い上位のパネルに属します。
+
+各パネルは 1 回のドローコールで描画されます。ただし、カスタムマテリアル、マスク、多数のテクスチャによって分割されることがあります ([パフォーマンス](./performance.mdx)を参照)。
+
+## 描画モード {#render-modes}
+
+### オーバーレイ {#overlay}
+
+`PanelRenderMode.Overlay` は、uGUI の Screen Space - Overlay のキャンバスと同じように、ポストプロセスの後にパネルを画面の上に描画します。画面に描画する最後のゲームカメラの上に描画されます。URP のレンダラーの設定は必要ありません。
+
+ルートの要素は画面全体を覆います。キャンバスのサイズ (パネル内のすべての長さの単位) は**スケールモード**によって決まります。
+
+| スケールモード | 動作 |
+|---|---|
+| `ScaleWithScreenSize` | `ReferenceResolution` を基準に画面に合わせて拡大縮小します。`Match` で幅に合わせる (0) か高さに合わせる (1) かを補間します。uGUI の *Scale With Screen Size* と同じです。 |
+| `ConstantScale` | キャンバス単位あたり `ConstantScale` 画面ピクセル。uGUI の *Constant Pixel Size* と同じです。 |
+
+オーバーレイのパネルが複数ある場合は、`SortOrder` が大きいものほど手前に描画されます。
+
+Scene ビューでは、オーバーレイのパネルは uGUI のオーバーレイのキャンバスと同じように表示されます。1 画面ピクセルが 1 ワールド単位で、左下の角が原点になります。
+
+### ワールド空間 {#world-space}
+
+`PanelRenderMode.World` は、パネルの GameObject の Transform の位置に、平面の Quad としてパネルをシーン内に描画します。URP の半透明パスで描画されるため、他の半透明オブジェクトと一緒にソート・深度テストされます。
+
+- キャンバスのサイズは `ReferenceResolution` です。
+- `WorldScale` はキャンバス単位あたりのワールド単位です。既定値の 0.001 では、1080×1920 のパネルは 1.08 × 1.92 ワールド単位になります。
+- パネルは Transform の XY 平面上で、Transform を中心に配置されます。
+- `EventCamera` はポインターイベントを見るカメラです (未設定ならメインカメラ)。
+
+:::note
+パネルの GameObject の Transform が使われるのはワールド空間の場合だけです。パネルの下にあるすべての要素の Transform は常に無視されます。
+:::
+
+## 座標 {#coordinates}
+
+パネル内の位置は**キャンバス空間**で表します。単位はキャンバス単位で、原点は左上、Y は下向きです。画面上の位置 (`PointerEventData.position` など) はピクセル単位で、原点は左下です。
+
+| メンバー | 変換 |
+|---|---|
+| `YauiPanel.TryScreenToCanvas` / `TryCanvasToScreen` | 画面 ↔ パネルのキャンバス空間 |
+| `YauiElement.ScreenToLocal` / `LocalToScreen` | 画面 ↔ 要素のボックスのローカル空間 (描画変換の適用後) |
+| `YauiPanel.ScaleFactor` | キャンバス単位あたりの画面ピクセル (オーバーレイ) |
+| `YauiPanel.CanvasSize` | キャンバス単位でのパネルのサイズ |
+| `YauiPanel.CanvasToWorld` | キャンバス空間 → ワールド空間 (ワールド空間のパネル) |
+
+これらの変換は、最後に描画された状態を使います。

@@ -1,0 +1,51 @@
+---
+title: ボタンとトグル
+sidebar_position: 1
+---
+
+# ボタンとトグル
+
+## YauiButton {#yauibutton}
+
+`YauiButton` は、クリックされたとき、またはゲームパッドやキーボードでサブミットされたときに `OnClick` を呼び出します。
+
+```
+Button     YauiElement (the background), YauiButton
+└─ Label   YauiText
+```
+
+```csharp
+button.OnClick.AddListener(() => Debug.Log("Clicked"));
+```
+
+## YauiToggle {#yauitoggle}
+
+`YauiToggle` はクリックまたはサブミットされるとオン・オフが切り替わります。オンの間は、`Graphic` (チェックマークなど) の不透明度を操作して表示します。
+
+```
+Toggle       YauiElement, YauiToggle
+├─ Box       YauiElement (the frame)
+│  └─ Check  YauiImage (the Graphic)
+└─ Label     YauiText
+```
+
+| メンバー | 説明 |
+|---|---|
+| `IsOn` | トグルがオンかどうか |
+| `Graphic` | オンの間に表示する要素 |
+| `ToggleTransition` | `Fade` はグラフィックをフェードイン・アウトし、`None` はすぐに表示・非表示にします |
+| `Group` | このトグルが属するトグルグループ (あれば) |
+| `OnValueChanged` | 値が変わったときに新しい値で呼び出されます |
+| `SetIsOnWithoutNotify(value)` | `OnValueChanged` を呼び出さずに値を変更します |
+
+## YauiToggleGroup {#yauitogglegroup}
+
+`YauiToggleGroup` は、ラジオボタンのように、属するトグルを排他的にします。1 つをオンにすると他はオフになります。各トグルの `Group` にグループを設定してください。
+
+| メンバー | 説明 |
+|---|---|
+| `AllowSwitchOff` | オンのトグルをクリックしたときにオフにして、どれもオンでない状態を許すかどうか |
+| `ActiveToggle` | オンのトグル。なければ null |
+| `Toggles` | グループのトグル |
+| `AnyTogglesOn()` | オンのトグルがあるかどうか |
+| `SetAllTogglesOff(notify)` | すべてのトグルをオフにします |

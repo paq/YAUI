@@ -1,0 +1,57 @@
+---
+title: Images
+sidebar_position: 5
+---
+
+# Images
+
+## YauiImage
+
+`YauiImage` draws a sprite over its content box (inside its padding and border), on top of its [box](./elements.mdx#box-style). It can have a background, a border and a shadow at the same time.
+
+| Property | Description |
+|---|---|
+| `Sprite` | The sprite |
+| `Color` | Multiplies the sprite's colors |
+| `Type` | `Simple`, `Sliced` or `Filled` |
+| `BorderScale` | Sliced: canvas units per pixel of the sprite's borders |
+| `FillMethod`, `FillOrigin`, `FillAmount`, `FillClockwise` | Filled: which part of the image is drawn |
+| `OverrideSprite` | Drawn instead of `Sprite` while set, without changing it (not saved) |
+
+### Types
+
+- **Simple** stretches the sprite over the content box. The corner radii of the box also round the image.
+- **Sliced** is a 9-slice: the borders of the sprite (set in the Sprite Editor) keep their size, and the center stretches.
+- **Filled** draws a part of the simple image, like uGUI's filled images:
+  - `Horizontal` and `Vertical` fill along an axis.
+  - `Radial90`, `Radial180` and `Radial360` fill a quarter circle around a corner, a half circle around the middle of an edge, or a full circle around the center.
+  - `FillOrigin` is a value of the enum for the method: `FillOriginHorizontal`, `FillOriginVertical`, `FillOrigin90`, `FillOrigin180` or `FillOrigin360`.
+
+```csharp
+image.Type = ImageType.Filled;
+image.FillMethod = FillMethod.Radial360;
+image.FillOrigin = (int)FillOrigin360.Top;
+image.FillAmount = 0.75f;
+```
+
+## YauiRawImage
+
+`YauiRawImage` draws any texture: a render texture, a video, or a texture that is not a sprite. `UvRect` selects the part of the texture to draw, in UVs from 0 to 1 (Y up). Textures do not repeat. The corner radii of the box also round the image.
+
+## Textures and draw calls
+
+A draw call of YAUI can use up to **8 textures**. When a panel uses more textures than that, its draw is split. Font atlases also count.
+
+To keep the number of textures low, YAUI packs small sprites into a **dynamic atlas**, like UI Toolkit does. The settings are in `YauiTextureAtlas`:
+
+| Setting | Description | Default |
+|---|---|---|
+| `Enabled` | Whether small sprites are packed | `true` |
+| `MaxSubTextureSize` | Sprites up to this size (in texels, on both sides) are packed | `64` |
+| `PageSize` | The size of an atlas page. More pages are added when needed. | `1024` |
+
+Changes to the settings apply to sprites added afterwards. Sprites are drawn into the pages on the GPU, so compressed sprites can be packed too.
+
+These sprites are not packed: sprites larger than `MaxSubTextureSize`, readable textures, formats with more than 8 bits per component, and sprites that are tightly packed in a sprite atlas.
+
+Sprites that are not packed are drawn from their own texture (or from their sprite atlas, if they are packed in one). Put the sprites that are shown together in the same sprite atlas to keep the number of textures low. `YauiRawImage` textures are never packed: each one uses a texture slot.

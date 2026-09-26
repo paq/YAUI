@@ -1,0 +1,55 @@
+---
+title: Scroll View
+sidebar_position: 3
+---
+
+# Scroll View
+
+`YauiScrollView` scrolls a **content** element inside a **viewport** element by dragging, with the scroll wheel, and with scrollbars, like uGUI's ScrollRect.
+
+The scroll view moves the content with its render transform (`YauiElement.Translate`). Scrolling never runs the layout again.
+
+## Setup
+
+The content keeps its own layout. A typical setup for vertical scrolling:
+
+```
+ScrollView        YauiElement (ClipChildren), YauiScrollView
+└─ Content        YauiElement (Position Absolute, Inset Left 0 / Top 0, Width 100%)
+   ├─ Item
+   ├─ Item
+   └─ ...
+```
+
+- The viewport clips its children (`ClipChildren`). The viewport is the scroll view's own element unless `Viewport` is set.
+- The content is an absolutely positioned child of the viewport, at the top-left. For vertical scrolling, its width is 100% of the viewport and its height is `Auto`, so that its children decide it. For horizontal scrolling, swap the width and the height.
+
+## Properties
+
+| Member | Description |
+|---|---|
+| `Content`, `Viewport` | The scrolled element, and the element that shows it |
+| `Horizontal`, `Vertical` | The axes that scroll |
+| `MovementType` | `Elastic` (pulls past the edges and springs back), `Clamped` (stops at the edges) or `Unrestricted` |
+| `Elasticity` | Elastic: roughly the time in seconds to spring back |
+| `Inertia`, `DecelerationRate` | Whether the content keeps moving after a drag, and the fraction of the velocity left after a second |
+| `ScrollSensitivity` | Canvas units per step of the scroll wheel |
+| `HorizontalScrollbar`, `VerticalScrollbar` | Scrollbars driven by the scroll view. The vertical one uses the direction `TopToBottom`. |
+| `OnValueChanged` | Invoked with the normalized position when it changes |
+
+## Scrolling from scripts
+
+| Member | Description |
+|---|---|
+| `ScrollPosition` | How far the content is scrolled from its place, in canvas units (positive toward its end) |
+| `ScrollRange` | How far the content can scroll on each axis |
+| `NormalizedPosition` | The scroll position as a fraction of the range (0 at the top-left) |
+| `Velocity` | The current velocity |
+| `StopMovement()` | Stops the inertia |
+| `ScrollIntoView(element)` | Scrolls as little as needed to show a descendant of the content |
+
+## Nested scroll views
+
+A scroll view passes drags on the axes it cannot scroll, and scroll wheel events when its content fits, to the scroll view above it. A vertical list inside a horizontal pager works without extra code.
+
+The scroll view does not virtualize its items. See [Performance](../performance.mdx#scroll-views).

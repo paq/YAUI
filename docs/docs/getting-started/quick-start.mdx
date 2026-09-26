@@ -1,0 +1,82 @@
+---
+title: Quick Start
+sidebar_position: 2
+---
+
+# Quick Start
+
+This page shows how to build a small screen: a card with a title and a button.
+
+## 1. Create a panel
+
+A **panel** is the root of a YAUI tree. Create an empty GameObject and add these components:
+
+- **YAUI/Panel** (`YauiPanel`). This also adds a `YauiElement`: the panel is the root element, and it fills the screen.
+- **YAUI/Raycaster** (`YauiRaycaster`), to receive pointer events.
+
+By default the panel is drawn over the screen after post-processing (`Overlay`). It scales with the screen size toward a reference resolution of 1080×1920, like uGUI's Canvas Scaler.
+
+Check that the scene has an EventSystem (**GameObject > UI > Event System**).
+
+## 2. Add elements
+
+Each GameObject under the panel that has a `YauiElement` (or a derived component such as `YauiText`) is a box in the UI. **Flexbox** lays out children inside their parent, and they are drawn on top of the parent in sibling order.
+
+:::note
+YAUI ignores the Transform of the GameObjects under a panel. Only the hierarchy matters: the layout decides positions and sizes. To move, rotate or scale an element, use its [render transform](../manual/elements.mdx#render-transform).
+:::
+
+Build this hierarchy:
+
+```
+Panel            YauiPanel, YauiElement, YauiRaycaster
+└─ Card          YauiElement
+   ├─ Title      YauiText
+   └─ Button     YauiElement, YauiButton
+      └─ Label   YauiText
+```
+
+Then set these properties in the Inspector:
+
+| GameObject | Properties |
+|---|---|
+| Panel | Layout: Justify `Center`, Align Items `Center` (to center the card) |
+| Card | Layout: Size W `600`, Padding `40` on all sides, Gap `(0, 24)`<br />Box: Background Color white, Corner Radius `24` on all corners, Shadow Color black with alpha 0.3, Shadow Blur `16`, Shadow Offset `(0, 8)` |
+| Title | Text `Hello, YAUI!`, Font Size `56` |
+| Button | Layout: Padding `24` on all sides, Align Items `Center`<br />Box: any Background Color, Corner Radius `16` |
+| Label | Text `Press me`, Color white |
+
+Look at the Game view. YAUI draws in Edit mode too.
+
+## 3. Handle the button
+
+`YauiButton` invokes `OnClick` when the element is clicked or submitted. Add a listener in the Inspector, or from a script:
+
+```csharp
+using UnityEngine;
+using Yaui;
+
+public class HelloButton : MonoBehaviour
+{
+    [SerializeField] YauiButton button;
+    [SerializeField] YauiText label;
+
+    int count;
+
+    void OnEnable() => button.OnClick.AddListener(OnClick);
+    void OnDisable() => button.OnClick.RemoveListener(OnClick);
+
+    void OnClick()
+    {
+        count++;
+        label.Text = $"Pressed {count} times";
+    }
+}
+```
+
+Set the properties of elements with their setters. Changing a color or a transform is very cheap: nothing is rebuilt and the layout does not run again. See [Scripting](../manual/scripting.mdx).
+
+## Next steps
+
+- Try the [samples](./samples.mdx).
+- Learn about [layout](../manual/layout.mdx) and [elements](../manual/elements.mdx).

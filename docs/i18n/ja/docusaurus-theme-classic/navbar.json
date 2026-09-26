@@ -1,0 +1,14 @@
+{
+  "title": {
+    "message": "YAUI",
+    "description": "The title in the navbar"
+  },
+  "item.label.Docs": {
+    "message": "ドキュメント",
+    "description": "Navbar item with label Docs"
+  },
+  "item.label.API": {
+    "message": "API",
+    "description": "Navbar item with label API"
+  }
+}

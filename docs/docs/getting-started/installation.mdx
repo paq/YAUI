@@ -1,0 +1,51 @@
+---
+title: Installation
+sidebar_position: 1
+---
+
+# Installation
+
+## Requirements
+
+| | |
+|---|---|
+| Unity | **6000.7** (Unity 6.7) or later |
+| Render pipeline | Universal Render Pipeline (URP) 17.7 or later |
+| Graphics API | Vulkan, Metal, Direct3D 11 / 12. OpenGL ES is not supported. |
+
+The Package Manager installs these dependencies with YAUI:
+
+- Burst
+- Collections
+- Universal RP
+- Unity UI (`com.unity.ugui`), for the EventSystem
+
+:::info
+YAUI uses the Advanced Text Generator (ATG) for text. Its public API was added in Unity 6.7, so earlier versions are not supported.
+:::
+
+## Install the package
+
+Open **Window > Package Manager**, click **+**, choose **Install package from git URL...** and enter this URL:
+
+```
+https://github.com/ruccho/YAUI.git?path=/Packages/com.ruccho.yaui
+```
+
+You can also add it to `Packages/manifest.json` directly:
+
+```json
+{
+  "dependencies": {
+    "com.ruccho.yaui": "https://github.com/ruccho/YAUI.git?path=/Packages/com.ruccho.yaui"
+  }
+}
+```
+
+To use a specific version, add a tag to the end of the URL, for example `#v0.1.0`.
+
+## Set up input
+
+YAUI receives pointer and navigation events through the EventSystem. If the scene has no EventSystem, add one with **GameObject > UI > Event System**. Both the Input System UI Input Module and the Standalone Input Module work.
+
+Next, [create your first panel](./quick-start.mdx).

@@ -1,0 +1,46 @@
+---
+title: Dropdown
+sidebar_position: 5
+---
+
+# Dropdown
+
+`YauiDropdown` picks one of its options from a list, like uGUI's Dropdown.
+
+When it opens, the dropdown copies its **template** (an inactive element, usually a scroll view) and shows the copy below the dropdown, on top of everything else in the panel. The template contains one **item**: a toggle with a text (and optionally an image). The item is copied for each option. Pressing outside the list closes it.
+
+## Setup
+
+```
+Dropdown              YauiElement, YauiDropdown
+├─ Label              YauiText (CaptionText)
+└─ Template           YauiElement (inactive), YauiScrollView
+   └─ Content         YauiElement
+      └─ Item         YauiElement, YauiToggle
+         ├─ Check     YauiElement (the toggle's Graphic)
+         └─ ItemLabel YauiText (ItemText)
+```
+
+| Member | Description |
+|---|---|
+| `Template` | The inactive element copied as the list |
+| `CaptionText`, `CaptionImage` | Show the text and image of the selected option |
+| `ItemText`, `ItemImage` | The text and image of the item in the template. The toggle around `ItemText` is the item. |
+| `Options` | The options (`OptionData`: a text and an optional sprite) |
+| `Value` | The index of the selected option |
+| `OnValueChanged` | Invoked with the new index when it changes |
+
+## Scripting
+
+```csharp
+dropdown.ClearOptions();
+dropdown.AddOptions(new[] { "Apple", "Banana", "Cherry" });
+dropdown.OnValueChanged.AddListener(index => Debug.Log(dropdown.Options[index].Text));
+```
+
+| Member | Description |
+|---|---|
+| `AddOptions(...)`, `ClearOptions()` | Change the options |
+| `SetValueWithoutNotify(index)` | Changes the value without invoking `OnValueChanged` |
+| `RefreshShownValue()` | Updates the caption after the options were changed directly |
+| `Show()`, `Hide()`, `IsExpanded` | Open and close the list |

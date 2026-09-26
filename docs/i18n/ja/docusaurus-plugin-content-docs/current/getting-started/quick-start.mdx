@@ -1,0 +1,82 @@
+---
+title: クイックスタート
+sidebar_position: 2
+---
+
+# クイックスタート
+
+このページでは、タイトルとボタンを持つカードという小さな画面の作り方を説明します。
+
+## 1. パネルを作成する {#1-create-a-panel}
+
+**パネル**は YAUI のツリーのルートです。空の GameObject を作成し、次のコンポーネントを追加してください。
+
+- **YAUI/Panel** (`YauiPanel`)。`YauiElement` も一緒に追加されます。パネルはルートの要素で、画面全体を覆います。
+- **YAUI/Raycaster** (`YauiRaycaster`)。ポインターイベントを受け取るために使います。
+
+既定では、パネルはポストプロセスの後に画面の上に描画されます (`Overlay`)。uGUI の Canvas Scaler と同じように、参照解像度 1080×1920 を基準に画面サイズに合わせて拡大縮小されます。
+
+シーンに EventSystem があることを確認してください (**GameObject > UI > Event System**)。
+
+## 2. 要素を追加する {#2-add-elements}
+
+パネルの下にある GameObject のうち、`YauiElement` (または `YauiText` などの派生コンポーネント) を持つものは、それぞれ UI 上のボックスになります。子は **Flexbox** によって親の内側にレイアウトされ、兄弟の順に親の上に描画されます。
+
+:::note
+YAUI はパネルの下にある GameObject の Transform を無視します。意味を持つのは階層だけで、位置とサイズはレイアウトが決めます。要素を移動・回転・拡大縮小するには、[描画変換](../manual/elements.mdx#render-transform)を使ってください。
+:::
+
+次の階層を作ります。
+
+```
+Panel            YauiPanel, YauiElement, YauiRaycaster
+└─ Card          YauiElement
+   ├─ Title      YauiText
+   └─ Button     YauiElement, YauiButton
+      └─ Label   YauiText
+```
+
+次に、Inspector で以下のプロパティを設定します。
+
+| GameObject | プロパティ |
+|---|---|
+| Panel | Layout: Justify `Center`、Align Items `Center` (カードを中央に配置するため) |
+| Card | Layout: Size W `600`、Padding を全辺 `40`、Gap `(0, 24)`<br />Box: Background Color 白、Corner Radius を全角 `24`、Shadow Color 黒 (アルファ 0.3)、Shadow Blur `16`、Shadow Offset `(0, 8)` |
+| Title | Text `Hello, YAUI!`、Font Size `56` |
+| Button | Layout: Padding を全辺 `24`、Align Items `Center`<br />Box: Background Color は任意、Corner Radius `16` |
+| Label | Text `Press me`、Color 白 |
+
+Game ビューを見てみましょう。YAUI は Edit モードでも描画されます。
+
+## 3. ボタンを処理する {#3-handle-the-button}
+
+`YauiButton` は、要素がクリックまたはサブミットされたときに `OnClick` を呼び出します。リスナーは Inspector で追加するか、スクリプトから追加します。
+
+```csharp
+using UnityEngine;
+using Yaui;
+
+public class HelloButton : MonoBehaviour
+{
+    [SerializeField] YauiButton button;
+    [SerializeField] YauiText label;
+
+    int count;
+
+    void OnEnable() => button.OnClick.AddListener(OnClick);
+    void OnDisable() => button.OnClick.RemoveListener(OnClick);
+
+    void OnClick()
+    {
+        count++;
+        label.Text = $"Pressed {count} times";
+    }
+}
+```
+
+要素のプロパティはセッターで設定します。色や変形の変更は非常に安価です。何も再構築されず、レイアウトも再実行されません。[スクリプティング](../manual/scripting.mdx)を参照してください。
+
+## 次のステップ {#next-steps}
+
+- [サンプル](./samples.mdx)を試してみてください。
+- [レイアウト](../manual/layout.mdx)と[要素](../manual/elements.mdx)について学びましょう。

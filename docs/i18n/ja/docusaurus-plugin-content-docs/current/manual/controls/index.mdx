@@ -1,0 +1,56 @@
+---
+title: コントロール
+sidebar_position: 7.5
+---
+
+# コントロール
+
+YAUI には、uGUI のよく使うコントロールを YAUI の要素の上に作り直したものが含まれています。
+
+| コントロール | 説明 |
+|---|---|
+| [`YauiButton`](./button-and-toggle.mdx#yauibutton) | クリックされたときにイベントを呼び出します |
+| [`YauiToggle`](./button-and-toggle.mdx#yauitoggle), [`YauiToggleGroup`](./button-and-toggle.mdx#yauitogglegroup) | オン・オフのスイッチと、ラジオボタン |
+| [`YauiSlider`](./slider-and-scrollbar.mdx#yauislider) | 範囲内の値を選びます |
+| [`YauiScrollbar`](./slider-and-scrollbar.mdx#yauiscrollbar) | スクロール位置を表示・変更します |
+| [`YauiScrollView`](./scroll-view.mdx) | ビューポートの中で内容をスクロールします |
+| [`YauiInputField`](./input-field.mdx) | テキストを編集します。IME とオンスクリーンキーボードに対応 |
+| [`YauiDropdown`](./dropdown.mdx) | リストから選択肢を 1 つ選びます |
+
+コントロールは `YauiElement` と同じ GameObject に追加するコンポーネントです。コントロール自身は何も描画しません。見た目は要素で組み立て、各部品 (ハンドル、フィル、ラベルなど) を Inspector で関連付けてください。**Controls** サンプルに、それぞれの完成例があります。
+
+コントロールには、パネルの `YauiRaycaster` とシーンの EventSystem が必要です。[入力](../input.mdx)を参照してください。
+
+## Selectable {#selectables}
+
+スクロールビューを除くすべてのコントロールは、uGUI の `Selectable` に相当する `YauiSelectable` の派生クラスです。Selectable はポインターと EventSystem の選択を追跡し、状態 (`Normal`、`Highlighted`、`Pressed`、`Selected`、`Disabled`) を表示します。
+
+`Interactable` はコントロールの有効・無効を切り替えます。操作できないコントロールは `Disabled` の状態を表示し、入力を無視します。
+
+### トランジション {#transitions}
+
+トランジションは状態を**対象の要素** (`TargetElement`。未設定なら Selectable 自身の要素) に表示します。
+
+| トランジション | 効果 |
+|---|---|
+| `ColorTint` | 対象の色に状態の色を乗算します (`YauiElement.Tint`)。`FadeDuration` 秒かけてフェードします |
+| `SpriteSwap` | 対象の画像に状態のスプライトを描画します (`YauiImage.OverrideSprite`) |
+| `Animation` | Selectable の GameObject の Animator に、状態のトリガーを設定します |
+| `None` | 効果なし |
+
+カラーティントは対象の要素自身にだけ適用され、子には適用されません。必要ならラベルは別途ティントしてください。
+
+### ナビゲーション {#navigation}
+
+Selectable は、EventSystem の移動イベントを通して、ゲームパッドやキーボードで選択できます。その方法は `Navigation` で設定します。
+
+| モード | 動作 |
+|---|---|
+| `Automatic` | 移動方向にある、パネル内で最も近い Selectable に移動します |
+| `Horizontal`, `Vertical` | `Automatic` と同じですが、1 つの軸だけです |
+| `Explicit` | 方向ごとに設定した Selectable (`Up`、`Down`、`Left`、`Right`) に移動します |
+| `None` | ナビゲーションなし |
+
+`WrapAround` を有効にすると、ある方向の最後の Selectable を越えて移動したときに最初の Selectable が選択されます。自動のモードでも、方向ごとに設定した Selectable があればそれが使われます。
+
+スクリプトからコントロールを選択するには `Select()` を呼んでください。

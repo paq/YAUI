@@ -1,0 +1,58 @@
+---
+title: Text
+sidebar_position: 4
+---
+
+# Text
+
+`YauiText` is an element that draws text. It uses Unity's **Advanced Text Generator** (ATG), the text engine of UI Toolkit, which provides:
+
+- Shaping (for scripts such as Arabic and Devanagari)
+- Fallback to OS fonts for characters that the font does not have
+- Line breaking rules for each language (including CJK)
+- Rich text tags
+
+Glyphs are drawn as SDF (signed distance field) from a dynamic font atlas by the uber shader, in the same draw call as the boxes and images.
+
+## Properties
+
+| Property | Description |
+|---|---|
+| `Text` | The text |
+| `Font` | A font (`UnityEngine.Font`). The built-in font when not set. |
+| `FontSize` | Size in canvas units |
+| `Color` | The default color. Rich text tags can override it. |
+| `Align` | `Left`, `Center`, `Right` or `Justified` |
+| `VerticalAlign` | `Top`, `Middle` or `Bottom`, within the element's box |
+| `WordWrap` | Whether lines wrap at the width of the box |
+| `Overflow` | `Visible`, or `Ellipsis` to cut the text where it overflows and end it with "…" |
+| `RichText` | Whether rich text tags are parsed |
+| `SpriteAsset` | A TextCore sprite asset for `<sprite>` tags |
+| `OutlineWidth`, `OutlineColor` | An outline around the glyphs |
+| `ShadowColor`, `ShadowOffset`, `ShadowBlur` | A shadow below the glyphs (and their outline). There is no shadow without an offset or a blur. |
+
+The outline width and the shadow blur are limited by the distance field of the font atlas: about a tenth of the font size for dynamic fonts.
+
+## Size
+
+When its `Width` or `Height` is `Auto`, a text element is measured by the layout. With `WordWrap`, the text wraps at the width that the layout gives it.
+
+`YauiText` does not lay out child elements: its children are ignored.
+
+With `Overflow = Ellipsis`, the text is cut where it overflows the width (without word wrap) or the height (with word wrap).
+
+## Generation
+
+Changing a text property is cheap at the time of the change: the text is only marked as changed. Changed texts are generated together, as jobs on worker threads, at the start of PreLateUpdate, and collected right before rendering. See [Scripting](./scripting.mdx#frame-pipeline).
+
+Text generation is the most expensive operation in YAUI. Avoid changing texts that did not change, for example by comparing values before setting them. `YauiText.Text` already does nothing when the new string is the same.
+
+:::info
+ATG is called through its internal API, found by reflection and checked at startup. If it does not match the Unity version in use, texts are generated with the public `TextGenerator` API on the main thread instead: they still work, but are slower.
+:::
+
+## Rich text and sprites
+
+With `RichText`, the tags supported by ATG can be used, for example `<b>`, `<i>`, `<color>`, `<size>` and `<sprite>`.
+
+To use `<sprite>`, set a TextCore sprite asset (`UnityEngine.TextCore.Text.SpriteAsset`) in `SpriteAsset`.

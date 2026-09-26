@@ -1,0 +1,92 @@
+---
+title: Elements and Styling
+sidebar_position: 2
+---
+
+# Elements and Styling
+
+An **element** (`YauiElement`) is a box of the UI on a GameObject. Its children that have elements are laid out inside it and drawn on top of it, in sibling order.
+
+## Element types
+
+| Component | Draws |
+|---|---|
+| `YauiElement` | A box: background, border and drop shadow. Contains child elements. |
+| `YauiText` | Text. Child elements are ignored. See [Text](./text.mdx). |
+| `YauiImage` | A sprite (simple, 9-sliced or filled) over its box. See [Images](./images.mdx). |
+| `YauiRawImage` | Any texture over its box. See [Images](./images.mdx). |
+
+`YauiText`, `YauiImage` and `YauiRawImage` derive from `YauiElement`, so they also have a layout, a box and a render transform. Use only one element component per GameObject.
+
+Other components work together with an element on the same GameObject: `YauiPanel`, `YauiMask`, `YauiRaycaster` and the [controls](./controls/index.mdx).
+
+## The Transform is ignored
+
+YAUI ignores the Transform (position, rotation and scale) of the GameObjects under a panel. The layout decides where an element is and how big it is. The hierarchy still matters: it decides the parent of each element and the order of siblings.
+
+A GameObject without an element in the middle of the hierarchy hides its whole subtree from YAUI: the elements under it are not drawn.
+
+### In the editor
+
+When you select an element, the Transform tools are hidden. Instead, the Scene view shows the element's box with handles:
+
+- The handles on the right edge, the bottom edge and the corner set the width and height (in canvas units).
+- An absolutely positioned element also has a handle in its center that moves it by changing its insets.
+
+The Inspector shows the margin, border and padding of the element as a box model diagram. You can click elements in the Scene view to select them.
+
+## Box style
+
+`YauiElement.Box` (`BoxStyle`) controls how the box looks. The uber shader draws all of these without breaking the batch.
+
+| Field | Description |
+|---|---|
+| `BackgroundColor` | The fill color. Transparent by default. |
+| `CornerRadius` | The radius of each corner: x top-left, y top-right, z bottom-right, w bottom-left. |
+| `BorderWidth`, `BorderColor` | A border inside the box. As in CSS, the border width also insets the content in the layout. |
+| `ShadowColor`, `ShadowOffset`, `ShadowBlur`, `ShadowSpread` | A drop shadow. There is no shadow when the color's alpha is 0. `ShadowBlur` is the Gaussian sigma in canvas units. |
+
+An element with nothing visible (no background, border or shadow) draws nothing and costs nothing on the GPU. Containers can be invisible.
+
+```csharp
+var box = element.Box;
+box.BackgroundColor = new Color(0.2f, 0.4f, 1f);
+box.CornerRadius = new Vector4(16f, 16f, 16f, 16f);
+box.ShadowColor = new Color(0f, 0f, 0f, 0.3f);
+box.ShadowBlur = 12f;
+element.Box = box;
+
+// Shortcut for the most common change.
+element.BackgroundColor = Color.red;
+```
+
+`BoxStyle` is a struct: read it, change it and write it back.
+
+## Render transform
+
+`YauiElement.RenderTransform` (`TransformStyle`) moves, rotates and scales the element **after** the layout, like CSS transforms. Changing it never runs the layout again, so it is the right tool for animations.
+
+| Field | Description |
+|---|---|
+| `Translate` | Offset in canvas units |
+| `Rotation` | Degrees, clockwise |
+| `Scale` | Scale factor |
+| `Pivot` | Origin of the rotation and scale, normalized in the box (0.5, 0.5 is the center) |
+
+The transform applies to the descendants too. `Translate`, `Rotation` and `Scale` also have their own setters on `YauiElement`.
+
+Transforms are 2D affine transforms. For 3D, use a [world space panel](./panels.mdx#world-space).
+
+## Opacity and tint
+
+- `Opacity` multiplies the alpha of the element **and its descendants**.
+- `Tint` multiplies the colors that the element itself draws (its box and content, not its children), like the color of uGUI's CanvasRenderer. It is not saved: [controls](./controls/index.mdx) use it for their color transitions.
+
+## Other properties
+
+| Property | Description |
+|---|---|
+| `ClipChildren` | Clips the descendants to this box. See [Clipping and Masks](./clipping-and-masks.mdx). |
+| `RaycastTarget` | Whether the element receives pointer events. See [Input](./input.mdx). |
+| `Material` | A custom material for this element. See [Custom Shaders](./custom-shaders.mdx). |
+| `LayoutRect` | The box from the last layout, relative to the parent's box. See [Layout](./layout.mdx#reading-the-result). |

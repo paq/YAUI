@@ -1,0 +1,17 @@
+---
+title: Limitations
+sidebar_position: 11
+---
+
+# Limitations
+
+YAUI chooses constraints to be fast. Some of them differ from uGUI:
+
+- **URP only.** The Built-in Render Pipeline and HDRP are not supported.
+- **No OpenGL ES.** YAUI supports Vulkan, Metal and desktop graphics APIs.
+- **The Transform of elements is ignored.** Positions and sizes come from the layout, and 2D render transforms move elements after the layout. For 3D, use a [world space panel](./panels.mdx#world-space).
+- **Not compatible with uGUI.** uGUI components (`Image`, `Text`, `LayoutGroup`...) do not work inside a YAUI panel, and there is no migration tool. uGUI canvases and YAUI panels can coexist in the same scene.
+- **Up to 8 textures per draw call.** More textures split the draw call. See [Images](./images.mdx#textures-and-draw-calls).
+- **`ClipChildren` applies only the nearest rounded clip.** Use `YauiMask` for deeper nesting or other shapes. Mask edges are not anti-aliased.
+- **Text uses internal APIs.** The Advanced Text Generator is called through its internal API, checked at startup. If it does not match the Unity version, texts use the public `TextGenerator` on the main thread (slower).
+- **Scroll views do not virtualize** their content.

@@ -1,0 +1,106 @@
+---
+title: カスタムシェーダー
+sidebar_position: 9
+---
+
+# カスタムシェーダー
+
+Uber シェーダーでほとんどの見た目を表現できます。それ以外が必要な場合は、`YauiElement.Material` にカスタムマテリアルを設定してください。カスタムマテリアルは要素自身のプリミティブ (ボックスと内容。子は含まない) を描画します。
+
+:::note
+要素の間でマテリアルが変わると、ドローコールが分割されます。描画順で隣り合う、同じマテリアルの要素はまとめて描画されます。
+:::
+
+## シェーダーの書き方 {#writing-a-shader}
+
+YAUI 向けのシェーダーは次のようにします。
+
+1. YAUI のシェーダーの共通コードである `Packages/com.ruccho.yaui/Runtime/Shaders/Yaui.hlsl` をインクルードします。
+2. 2 つのパスを宣言します。
+   - `Overlay`: タグ `"LightMode" = "YauiOverlay"` と頂点関数 `VertOverlay`
+   - `World`: 頂点関数 `VertWorld`
+3. `Varyings` 構造体を受け取る独自のフラグメント関数を書きます。`FragImpl(i, world)` を呼ぶと Uber シェーダーの結果を得られるので、それを加工できます。
+4. 乗算済みアルファのブレンド (`Blend One OneMinusSrcAlpha`) を使います。
+
+**Custom Shader** サンプルの次の例は、Uber シェーダーの結果に水平方向のグラデーションで色を付けます。
+
+```hlsl
+Shader "Yaui/Samples/Gradient Tint"
+{
+    Properties
+    {
+        _ColorA ("Left", Color) = (1, 0.3, 0.6, 1)
+        _ColorB ("Right", Color) = (0.3, 0.6, 1, 1)
+
+        // マスク (YauiMask) の中ではレンダラーが設定します。
+        [HideInInspector] _YauiStencilRef ("Stencil Ref", Float) = 0
+        [HideInInspector] _YauiStencilComp ("Stencil Comparison", Float) = 8
+        [HideInInspector] _YauiStencilPass ("Stencil Pass", Float) = 0
+    }
+
+    HLSLINCLUDE
+    #pragma target 4.5
+    // 回転した Quad と角丸のクリップは、これがあるときだけピクセルごとにクリップされます (GPU 時間がかかります)。
+    #define YAUI_PIXEL_CLIP
+    #include "Packages/com.ruccho.yaui/Runtime/Shaders/Yaui.hlsl"
+
+    float4 _ColorA;
+    float4 _ColorB;
+
+    half4 Tint(Varyings i, half4 color)
+    {
+        // local: 形状の中心からの相対位置と、形状の半分のサイズ。
+        float t = saturate(i.local.x / max(i.local.z, 1e-4) * 0.5 + 0.5);
+        return color * half4(lerp(_ColorA.rgb, _ColorB.rgb, t), 1.0);
+    }
+
+    half4 FragTintOverlay(Varyings i) : SV_Target { return Tint(i, FragImpl(i, false)); }
+    half4 FragTintWorld(Varyings i) : SV_Target { return Tint(i, FragImpl(i, true)); }
+    ENDHLSL
+
+    SubShader
+    {
+        Tags { "RenderType" = "Transparent" "Queue" = "Transparent" "RenderPipeline" = "UniversalPipeline" }
+        Blend One OneMinusSrcAlpha
+        ZWrite Off
+        Cull Off
+        Stencil
+        {
+            Ref [_YauiStencilRef]
+            Comp [_YauiStencilComp]
+            Pass [_YauiStencilPass]
+        }
+
+        Pass
+        {
+            Name "Overlay"
+            Tags { "LightMode" = "YauiOverlay" }
+            ZTest Always
+
+            HLSLPROGRAM
+            #pragma vertex VertOverlay
+            #pragma fragment FragTintOverlay
+            ENDHLSL
+        }
+
+        Pass
+        {
+            Name "World"
+            ZTest LEqual
+
+            HLSLPROGRAM
+            #pragma vertex VertWorld
+            #pragma fragment FragTintWorld
+            ENDHLSL
+        }
+    }
+}
+```
+
+## ピクセルごとのクリップ {#per-pixel-clipping}
+
+回転した Quad と角丸の[クリップ](./clipping-and-masks.mdx#clipchildren)には、ピクセルごとの判定が必要です。有効にするには、`Yaui.hlsl` をインクルードする前に `YAUI_PIXEL_CLIP` を定義してください。これは varying を増やし、モバイルでは GPU 時間がかかるため、マテリアルを使う要素が回転せず、角丸のクリップの中にもない場合は定義しないでください (Uber シェーダーは、必要なパネルでだけこれを有効にします)。
+
+## マスク {#masks}
+
+[`YauiMask`](./clipping-and-masks.mdx#yauimask) でマスクされるには、上の例のように、シェーダーで `_YauiStencilRef`、`_YauiStencilComp`、`_YauiStencilPass` のプロパティと `Stencil` ブロックを宣言してください。値はレンダラーが設定します。

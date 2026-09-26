@@ -1,0 +1,52 @@
+---
+title: Slider and Scrollbar
+sidebar_position: 2
+---
+
+# Slider and Scrollbar
+
+Sliders and scrollbars have parts that move along a **track**. The control places these parts itself, by giving them an absolute position in percent of their parent (the track). Do not set the layout of the parts along the axis of the control.
+
+`Direction` (`TrackDirection`) sets the axis and the direction of both controls: `LeftToRight`, `RightToLeft`, `BottomToTop` or `TopToBottom`.
+
+## YauiSlider
+
+`YauiSlider` picks a value in a range by dragging along its track, or with the navigation keys along its direction.
+
+```
+Slider          YauiElement, YauiSlider
+├─ FillArea     YauiElement (the track of the fill)
+│  └─ Fill      YauiElement (from the start to the value)
+└─ HandleArea   YauiElement (the track of the handle)
+   └─ Handle    YauiElement (centered on the value)
+```
+
+| Member | Description |
+|---|---|
+| `Fill` | Placed from the start of its track to the value (optional) |
+| `Handle` | Centered on the value in its track (optional) |
+| `MinValue`, `MaxValue` | The range |
+| `WholeNumbers` | Whether the value is rounded to integers |
+| `Value`, `NormalizedValue` | The value, and the value from 0 to 1 |
+| `OnValueChanged` | Invoked with the new value when it changes |
+| `SetValueWithoutNotify(value)` | Changes the value without invoking `OnValueChanged` |
+
+## YauiScrollbar
+
+`YauiScrollbar` has a handle whose size is a fraction of its track (the visible part of a scrolled content), at a position from 0 to 1. Dragging the handle moves it, and pressing the track moves it a page toward the pointer.
+
+```
+Scrollbar     YauiElement (the track), YauiScrollbar
+└─ Handle     YauiElement
+```
+
+| Member | Description |
+|---|---|
+| `Handle` | The handle, placed in its parent |
+| `Value` | The position from 0 to 1 |
+| `Size` | The size of the handle, as a fraction of the track |
+| `NumberOfSteps` | The number of positions the value snaps to, or 0 for none |
+| `OnValueChanged` | Invoked with the new value when it changes |
+| `SetValueWithoutNotify(value)` | Changes the value without invoking `OnValueChanged` |
+
+A [scroll view](./scroll-view.mdx) drives the size and value of its scrollbars.

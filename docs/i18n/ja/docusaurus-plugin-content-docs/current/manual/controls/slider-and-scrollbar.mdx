@@ -1,0 +1,52 @@
+---
+title: スライダーとスクロールバー
+sidebar_position: 2
+---
+
+# スライダーとスクロールバー
+
+スライダーとスクロールバーには、**トラック**に沿って動く部品があります。コントロールはこれらの部品を、親 (トラック) に対するパーセントの絶対位置を与えることで自ら配置します。コントロールの軸方向について、部品のレイアウトは設定しないでください。
+
+`Direction` (`TrackDirection`) で、どちらのコントロールも軸と向きを設定します: `LeftToRight`、`RightToLeft`、`BottomToTop`、`TopToBottom`。
+
+## YauiSlider {#yauislider}
+
+`YauiSlider` は、トラックに沿ったドラッグ、または向きに沿ったナビゲーションキーで、範囲内の値を選びます。
+
+```
+Slider          YauiElement, YauiSlider
+├─ FillArea     YauiElement (the track of the fill)
+│  └─ Fill      YauiElement (from the start to the value)
+└─ HandleArea   YauiElement (the track of the handle)
+   └─ Handle    YauiElement (centered on the value)
+```
+
+| メンバー | 説明 |
+|---|---|
+| `Fill` | トラックの始点から値までに配置されます (省略可) |
+| `Handle` | トラック内で値を中心に配置されます (省略可) |
+| `MinValue`, `MaxValue` | 範囲 |
+| `WholeNumbers` | 値を整数に丸めるかどうか |
+| `Value`, `NormalizedValue` | 値と、0〜1 に正規化した値 |
+| `OnValueChanged` | 値が変わったときに新しい値で呼び出されます |
+| `SetValueWithoutNotify(value)` | `OnValueChanged` を呼び出さずに値を変更します |
+
+## YauiScrollbar {#yauiscrollbar}
+
+`YauiScrollbar` は、トラックに対する割合 (スクロールする内容のうち見えている部分) のサイズを持つハンドルを、0〜1 の位置に持ちます。ハンドルをドラッグすると動き、トラックを押すとポインターの方向に 1 ページ分動きます。
+
+```
+Scrollbar     YauiElement (the track), YauiScrollbar
+└─ Handle     YauiElement
+```
+
+| メンバー | 説明 |
+|---|---|
+| `Handle` | 親の中に配置されるハンドル |
+| `Value` | 0〜1 の位置 |
+| `Size` | トラックに対する割合でのハンドルのサイズ |
+| `NumberOfSteps` | 値がスナップする位置の数。0 ならスナップなし |
+| `OnValueChanged` | 値が変わったときに新しい値で呼び出されます |
+| `SetValueWithoutNotify(value)` | `OnValueChanged` を呼び出さずに値を変更します |
+
+[スクロールビュー](./scroll-view.mdx)はスクロールバーのサイズと値を操作します。

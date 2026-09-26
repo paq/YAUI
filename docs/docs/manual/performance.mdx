@@ -1,0 +1,46 @@
+---
+title: Performance
+sidebar_position: 10
+---
+
+# Performance
+
+YAUI is fast by default. This page explains what costs time, and how to keep it low.
+
+## Draw calls
+
+A panel is drawn in **one draw call**, except where:
+
+- **the material changes** between elements in the draw order ([custom materials](./custom-shaders.mdx)),
+- **a mask** starts or ends ([`YauiMask`](./clipping-and-masks.mdx#yauimask)),
+- **more than 8 textures** are used by consecutive elements. Font atlases, sprite textures, dynamic atlas pages and raw image textures all count.
+
+To keep draw calls low:
+
+- Use the uber shader (box style, text effects, image types) instead of custom materials.
+- Use `ClipChildren` instead of `YauiMask` when a rectangle or a single rounded rectangle is enough.
+- Keep small sprites in the [dynamic atlas](./images.mdx#textures-and-draw-calls), and put larger sprites that are shown together in the same sprite atlas.
+- Use few fonts in one panel.
+
+## CPU
+
+| Work | Tips |
+|---|---|
+| **Text generation** is the most expensive operation. | Set texts only when they change. Keep the number of texts that change in the same frame low. |
+| **Layout** runs for the boundaries that contain changes. | Give fixed `Width` and `Height` to containers whose size does not depend on their content, to make them [layout boundaries](./layout.mdx#layout-boundaries). Animate with the render transform, not with layout properties. |
+| **Hierarchy changes** rebuild the draw order of the panel. | Reuse elements instead of creating and destroying them each frame. Enabling and disabling a GameObject is also a hierarchy change. |
+| **`YauiPanel.ForceUpdate()`** completes all the work at once on the main thread. | Call it only when you need the result in the same frame. |
+
+Colors, render transforms and opacity are nearly free to change, and a frame without changes costs almost nothing.
+
+## GPU
+
+The uber shader has a cost for its many features, and the GPU time of YAUI is about the same as uGUI's. To keep it low:
+
+- Avoid large overlapping transparent areas (overdraw), as with any UI.
+- Large shadow blurs enlarge the quads that are drawn.
+- `YAUI_PIXEL_CLIP` in custom shaders costs GPU time on mobile. Enable it only when needed.
+
+## Scroll views
+
+`YauiScrollView` moves its content with the render transform, so scrolling never runs the layout. It does not virtualize its items: all items are drawn and laid out. For very long lists, reuse a small set of items in a higher layer.

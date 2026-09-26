@@ -1,0 +1,92 @@
+---
+title: レイアウト
+sidebar_position: 3
+---
+
+# レイアウト
+
+YAUI は [Yoga](https://www.yogalayout.dev/) の移植版を使い、**Flexbox** で要素をレイアウトします。CSS の Flexbox や UI Toolkit を知っていれば、そのほとんどをすでに理解しています。レイアウトはワーカースレッド上で Burst を使って実行されます。
+
+要素のレイアウトのプロパティは `YauiElement.Layout` (`LayoutStyle`) にあります。`LayoutStyle` は構造体です。読み出して変更し、書き戻してください。
+
+```csharp
+var layout = element.Layout;
+layout.Direction = FlexDirection.Row;
+layout.Width = Length.Percent(50f);
+layout.Padding = new Edges(16f);
+layout.Gap = new Vector2(8f, 0f);
+element.Layout = layout;
+```
+
+## 長さ {#lengths}
+
+`Length` は値と単位の組です。
+
+| 単位 | 例 | 意味 |
+|---|---|---|
+| `Auto` | `Length.Auto` | レイアウトが決めます。最小・最大サイズでは制限なしを意味します。 |
+| `Point` | `Length.Points(120f)` または単に `120f` | キャンバス単位。`float` はポイントに変換されます。 |
+| `Percent` | `Length.Percent(50f)` | 親のサイズに対するパーセント |
+
+Inspector では `auto`、`120`、`50%` のように入力します。
+
+`Edges` は各辺 (左、上、右、下) の長さを持ち、マージン、パディング、インセットに使います。`new Edges(all)`、`new Edges(horizontal, vertical)`、`new Edges(left, top, right, bottom)` で作成できます。
+
+## プロパティ {#properties}
+
+| プロパティ | 説明 | 既定値 |
+|---|---|---|
+| `Direction` | 主軸: `Row`、`Column`、`RowReverse`、`ColumnReverse` | `Column` |
+| `Wrap` | 子を複数行に折り返すかどうか: `NoWrap`、`Wrap`、`WrapReverse` | `NoWrap` |
+| `JustifyContent` | 主軸方向の子の配置 | `FlexStart` |
+| `AlignItems` | 交差軸方向の子の揃え方 | `Stretch` |
+| `AlignSelf` | この要素について親の `AlignItems` を上書きします | `Auto` |
+| `AlignContent` | 折り返したときの行の配置 | `FlexStart` |
+| `Grow`, `Shrink`, `Basis` | 主軸方向に要素がどう伸び縮みするか | `0`, `1`, `Auto` |
+| `Width`, `Height` | サイズ | `Auto` |
+| `MinWidth`, `MinHeight`, `MaxWidth`, `MaxHeight` | サイズの制限 | `Auto` (制限なし) |
+| `Margin` | ボックスの外側の余白 | `0` |
+| `Padding` | ボックスの内側、子の周りの余白 | `0` |
+| `Gap` | 子の間の間隔。x: 列の間、y: 行の間 | `(0, 0)` |
+| `Position` | `Relative` または `Absolute` | `Relative` |
+| `Inset` | 親の辺からのオフセット (`Absolute` の場合)、または通常の位置からのオフセット (`Relative` の場合) | `Auto` |
+
+既定値は CSS に従います。ただし、Yoga や UI Toolkit と同じく、方向は列 (Column) です。
+
+[ボックスのスタイル](./elements.mdx#box-style)の `BorderWidth` もレイアウトの一部です。CSS と同じく、子を内側に寄せます。
+
+### 絶対配置 {#absolute-positioning}
+
+`Position = Absolute` の要素は、親の Flex レイアウトから外れ、親のボックスを基準にインセットで配置されます。たとえば親全体を覆うには次のようにします。
+
+```csharp
+var layout = overlay.Layout;
+layout.Position = PositionType.Absolute;
+layout.Inset = new Edges(0f);
+overlay.Layout = layout;
+```
+
+## レイアウトを再実行するもの {#what-runs-the-layout-again}
+
+レイアウトを再実行するのは、レイアウトのプロパティ (とボーダーの幅) だけです。ボックスのスタイル (ボーダーの幅を除く)、描画変換、不透明度、ティント、色は再実行しません。自由にアニメーションさせてください。
+
+テキストは、サイズが `Auto` のときにレイアウトによって計測されます。テキストが変更されると再生成され、サイズが変わった場合にだけレイアウトが再実行されます。
+
+## レイアウトの境界 {#layout-boundaries}
+
+`Width` と `Height` がどちらも固定 (ポイント) の要素は**レイアウトの境界**になります。境界の内側の変更は境界自身のサイズを変えられないため、ツリーの他の部分には広がりません。境界の部分木だけが再レイアウトされます。独立した境界は並列にレイアウトされます。
+
+リストの項目、セル、カード、HUD のウィジェットなど、内容によってサイズが変わらないコンテナには固定サイズを与えてください。変更のコストを変更の量に比例させることができます。
+
+## 結果の読み取り {#reading-the-result}
+
+フレーム内で行われた変更のレイアウトは `LateUpdate` の後に実行され、その結果は描画の直前に適用されます。[スクリプティング](./scripting.mdx#frame-pipeline)を参照してください。
+
+- `YauiElement.LayoutRect` は、最後のレイアウトによるボックスです。親のボックスからの相対位置で、キャンバス単位です。
+- 同じフレームで行った変更のレイアウトを得るには、先に `YauiPanel.ForceUpdate()` を呼んでください。uGUI の `Canvas.ForceUpdateCanvases()` と同じように、すべてのパネルのレイアウト、テキスト生成、アップロードを一度に行います。必要なときだけ使ってください。フレームパイプラインによる他の処理との重なりが失われます。
+
+```csharp
+label.Text = "A longer text";
+YauiPanel.ForceUpdate();
+var size = label.LayoutRect.size; // 新しいテキストでのサイズ
+```

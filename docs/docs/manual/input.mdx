@@ -1,0 +1,59 @@
+---
+title: Input
+sidebar_position: 7
+---
+
+# Input
+
+YAUI uses the **EventSystem** of Unity for input. Pointer events, selection, navigation with a gamepad or a keyboard, and the Input System UI Input Module all work as they do with uGUI.
+
+## Setup
+
+1. Add an EventSystem to the scene (**GameObject > UI > Event System**).
+2. Add `YauiRaycaster` to the GameObject of each panel that receives input.
+
+`YauiRaycaster` is a `BaseRaycaster`, like uGUI's `GraphicRaycaster`, so YAUI panels and uGUI canvases can receive input in the same scene. Overlay panels are on top of everything rendered by cameras, and are ordered by their `SortOrder`. World space panels are seen through the panel's `EventCamera`.
+
+## Receiving events
+
+Events go to the GameObject of the topmost element under the pointer, and **bubble up** the hierarchy to the first GameObject that handles them, as with uGUI. Implement the usual EventSystem interfaces on a component of an element:
+
+```csharp
+using UnityEngine;
+using UnityEngine.EventSystems;
+using Yaui;
+
+[RequireComponent(typeof(YauiElement))]
+public class HoverHighlight : MonoBehaviour, IPointerEnterHandler, IPointerExitHandler
+{
+    YauiElement element;
+
+    void Awake() => element = GetComponent<YauiElement>();
+
+    public void OnPointerEnter(PointerEventData eventData) => element.BackgroundColor = Color.yellow;
+    public void OnPointerExit(PointerEventData eventData) => element.BackgroundColor = Color.white;
+}
+```
+
+For buttons, toggles, sliders and other common widgets, use the [controls](./controls/index.mdx).
+
+## What receives hits
+
+An element is hit when:
+
+- `RaycastTarget` is on (the default), and
+- it draws something: a visible box (background, border or shadow), a text, or an image.
+
+Containers without a visible box never block the pointer, so there is no need to turn off `RaycastTarget` on layout containers. To make an invisible area receive hits, give it a background color with a very small alpha.
+
+Hits are tested against the transformed box of the element, clipped by the clips of its ancestors. Rotated elements are tested exactly. Hits use the state that was last rendered.
+
+Hit testing uses a uniform grid, built with Burst and updated only where the shapes changed.
+
+## Hit testing from scripts
+
+`YauiPanel.HitTest(screenPosition)` returns the topmost element that receives hits at a screen position, or null.
+
+```csharp
+var element = panel.HitTest(Input.mousePosition);
+```

@@ -1,0 +1,54 @@
+---
+title: Panels
+sidebar_position: 1
+---
+
+# Panels
+
+A **panel** (`YauiPanel`) is the root of a YAUI tree. It is also an element: `YauiPanel` requires a `YauiElement` on the same GameObject, and that element is the root box of the layout. Elements belong to the nearest panel above them in the hierarchy.
+
+Each panel is drawn in one draw call, unless custom materials, masks or many textures split it (see [Performance](./performance.mdx)).
+
+## Render modes
+
+### Overlay
+
+`PanelRenderMode.Overlay` draws the panel over the screen after post-processing, like uGUI's Screen Space - Overlay canvas. It is drawn on the last game camera that renders to the screen. No setup of the URP renderer is needed.
+
+The root element fills the screen. The size of the canvas (the unit of all lengths in the panel) depends on the **scale mode**:
+
+| Scale mode | Behavior |
+|---|---|
+| `ScaleWithScreenSize` | Scales with the screen toward `ReferenceResolution`. `Match` blends between matching the width (0) and the height (1). The same as uGUI's *Scale With Screen Size*. |
+| `ConstantScale` | `ConstantScale` screen pixels per canvas unit. The same as uGUI's *Constant Pixel Size*. |
+
+When several overlay panels exist, the ones with a higher `SortOrder` are drawn on top.
+
+In the Scene view, overlay panels appear like uGUI's overlay canvases: one world unit per screen pixel, with the bottom-left corner at the origin.
+
+### World space
+
+`PanelRenderMode.World` draws the panel as a flat quad in the scene, at the panel GameObject's Transform. It is drawn in the transparent pass of URP, so it is sorted and depth tested with the other transparent objects.
+
+- The canvas size is `ReferenceResolution`.
+- `WorldScale` is the number of world units per canvas unit. With the default of 0.001, a 1080×1920 panel is 1.08 × 1.92 world units.
+- The panel is centered on its Transform, in the Transform's XY plane.
+- `EventCamera` is the camera that pointer events are seen through (the main camera when not set).
+
+:::note
+The Transform of the panel GameObject is used only in world space. The Transforms of all elements below the panel are always ignored.
+:::
+
+## Coordinates
+
+Positions in a panel are in **canvas space**: canvas units, with the origin at the top-left and Y pointing down. Screen positions (like `PointerEventData.position`) are in pixels with the origin at the bottom-left.
+
+| Member | Converts |
+|---|---|
+| `YauiPanel.TryScreenToCanvas` / `TryCanvasToScreen` | Screen ↔ canvas space of the panel |
+| `YauiElement.ScreenToLocal` / `LocalToScreen` | Screen ↔ the local space of an element's box (after its render transforms) |
+| `YauiPanel.ScaleFactor` | Screen pixels per canvas unit (overlay) |
+| `YauiPanel.CanvasSize` | The size of the panel in canvas units |
+| `YauiPanel.CanvasToWorld` | Canvas space → world space (world space panels) |
+
+These conversions use the state that was last rendered.

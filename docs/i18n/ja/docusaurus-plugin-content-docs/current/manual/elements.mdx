@@ -1,0 +1,92 @@
+---
+title: 要素とスタイル
+sidebar_position: 2
+---
+
+# 要素とスタイル
+
+**要素** (`YauiElement`) は GameObject 上にある UI のボックスです。要素を持つ子は、その内側にレイアウトされ、兄弟の順にその上に描画されます。
+
+## 要素の種類 {#element-types}
+
+| コンポーネント | 描画するもの |
+|---|---|
+| `YauiElement` | ボックス: 背景、ボーダー、ドロップシャドウ。子の要素を持てます。 |
+| `YauiText` | テキスト。子の要素は無視されます。[テキスト](./text.mdx)を参照してください。 |
+| `YauiImage` | ボックスの上にスプライト (シンプル、9 スライス、フィル)。[画像](./images.mdx)を参照してください。 |
+| `YauiRawImage` | ボックスの上に任意のテクスチャ。[画像](./images.mdx)を参照してください。 |
+
+`YauiText`、`YauiImage`、`YauiRawImage` は `YauiElement` の派生クラスなので、レイアウト、ボックス、描画変換も持ちます。要素のコンポーネントは 1 つの GameObject に 1 つだけにしてください。
+
+同じ GameObject 上の要素と組み合わせて使うコンポーネントもあります: `YauiPanel`、`YauiMask`、`YauiRaycaster`、そして[コントロール](./controls/index.mdx)です。
+
+## Transform は無視される {#the-transform-is-ignored}
+
+YAUI はパネルの下にある GameObject の Transform (位置、回転、スケール) を無視します。要素の位置と大きさはレイアウトが決めます。ただし階層には意味があり、各要素の親と兄弟の順序を決めます。
+
+階層の途中に要素を持たない GameObject があると、その部分木全体が YAUI から隠れます。その下にある要素は描画されません。
+
+### エディタでの編集 {#in-the-editor}
+
+要素を選択すると、Transform のツールは非表示になります。代わりに、Scene ビューには要素のボックスとハンドルが表示されます。
+
+- 右辺・下辺・角のハンドルで、幅と高さ (キャンバス単位) を設定できます。
+- 絶対配置の要素には中央にもハンドルがあり、インセットを変更して要素を移動できます。
+
+Inspector では、要素のマージン・ボーダー・パディングがボックスモデルの図として表示されます。Scene ビューで要素をクリックして選択することもできます。
+
+## ボックスのスタイル {#box-style}
+
+`YauiElement.Box` (`BoxStyle`) はボックスの見た目を決めます。これらはすべて、Uber シェーダーがバッチを切らずに描画します。
+
+| フィールド | 説明 |
+|---|---|
+| `BackgroundColor` | 塗りつぶしの色。既定では透明です。 |
+| `CornerRadius` | 各角の半径: x 左上、y 右上、z 右下、w 左下。 |
+| `BorderWidth`, `BorderColor` | ボックスの内側のボーダー。CSS と同じく、ボーダーの幅はレイアウト上でも内容を内側に寄せます。 |
+| `ShadowColor`, `ShadowOffset`, `ShadowBlur`, `ShadowSpread` | ドロップシャドウ。色のアルファが 0 のときは影はありません。`ShadowBlur` はキャンバス単位でのガウス分布のシグマです。 |
+
+何も見えない要素 (背景、ボーダー、影のいずれもない) は何も描画せず、GPU のコストもかかりません。コンテナは見えないままで構いません。
+
+```csharp
+var box = element.Box;
+box.BackgroundColor = new Color(0.2f, 0.4f, 1f);
+box.CornerRadius = new Vector4(16f, 16f, 16f, 16f);
+box.ShadowColor = new Color(0f, 0f, 0f, 0.3f);
+box.ShadowBlur = 12f;
+element.Box = box;
+
+// よく使う変更のためのショートカット
+element.BackgroundColor = Color.red;
+```
+
+`BoxStyle` は構造体です。読み出して変更し、書き戻してください。
+
+## 描画変換 {#render-transform}
+
+`YauiElement.RenderTransform` (`TransformStyle`) は、CSS の transform と同じように、レイアウトの**後に**要素を移動・回転・拡大縮小します。変更してもレイアウトは再実行されないため、アニメーションに適しています。
+
+| フィールド | 説明 |
+|---|---|
+| `Translate` | キャンバス単位でのオフセット |
+| `Rotation` | 度数、時計回り |
+| `Scale` | 拡大率 |
+| `Pivot` | 回転と拡大縮小の原点。ボックス内で正規化した値 (0.5, 0.5 が中心) |
+
+変換は子孫にも適用されます。`Translate`、`Rotation`、`Scale` には `YauiElement` 上にそれぞれ個別のセッターもあります。
+
+変換は 2D のアフィン変換です。3D には[ワールド空間のパネル](./panels.mdx#world-space)を使ってください。
+
+## 不透明度とティント {#opacity-and-tint}
+
+- `Opacity` は、要素**とその子孫**のアルファに乗算されます。
+- `Tint` は、uGUI の CanvasRenderer の色と同じように、要素自身が描画する色 (ボックスと内容。子は含まない) に乗算されます。これは保存されません。[コントロール](./controls/index.mdx)は色のトランジションにこれを使います。
+
+## その他のプロパティ {#other-properties}
+
+| プロパティ | 説明 |
+|---|---|
+| `ClipChildren` | 子孫をこのボックスでクリップします。[クリップとマスク](./clipping-and-masks.mdx)を参照してください。 |
+| `RaycastTarget` | 要素がポインターイベントを受け取るかどうか。[入力](./input.mdx)を参照してください。 |
+| `Material` | この要素のカスタムマテリアル。[カスタムシェーダー](./custom-shaders.mdx)を参照してください。 |
+| `LayoutRect` | 最後のレイアウトによるボックス。親のボックスからの相対位置です。[レイアウト](./layout.mdx#reading-the-result)を参照してください。 |

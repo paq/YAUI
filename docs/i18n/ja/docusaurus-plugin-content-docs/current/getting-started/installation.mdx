@@ -1,0 +1,51 @@
+---
+title: インストール
+sidebar_position: 1
+---
+
+# インストール
+
+## 要件 {#requirements}
+
+| | |
+|---|---|
+| Unity | **6000.7** (Unity 6.7) 以降 |
+| レンダーパイプライン | Universal Render Pipeline (URP) 17.7 以降 |
+| グラフィックス API | Vulkan、Metal、Direct3D 11 / 12。OpenGL ES はサポートしていません。 |
+
+以下の依存パッケージは、YAUI と一緒に Package Manager がインストールします。
+
+- Burst
+- Collections
+- Universal RP
+- Unity UI (`com.unity.ugui`)。EventSystem のために使います
+
+:::info
+YAUI はテキストに Advanced Text Generator (ATG) を使います。その公開 API は Unity 6.7 で追加されたため、それより前のバージョンはサポートしていません。
+:::
+
+## パッケージのインストール {#install-the-package}
+
+**Window > Package Manager** を開き、**+** をクリックして **Install package from git URL...** を選び、次の URL を入力してください。
+
+```
+https://github.com/ruccho/YAUI.git?path=/Packages/com.ruccho.yaui
+```
+
+`Packages/manifest.json` に直接追加することもできます。
+
+```json
+{
+  "dependencies": {
+    "com.ruccho.yaui": "https://github.com/ruccho/YAUI.git?path=/Packages/com.ruccho.yaui"
+  }
+}
+```
+
+特定のバージョンを使うには、URL の末尾にタグを付けてください (例: `#v0.1.0`)。
+
+## 入力の設定 {#set-up-input}
+
+YAUI はポインターとナビゲーションのイベントを EventSystem を通して受け取ります。シーンに EventSystem がなければ、**GameObject > UI > Event System** で追加してください。Input System UI Input Module と Standalone Input Module のどちらでも動作します。
+
+次は[最初のパネルを作成](./quick-start.mdx)しましょう。
