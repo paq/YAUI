@@ -53,3 +53,7 @@ https://github.com/ruccho/YAUI.git?path=/Packages/com.ruccho.yaui
 ## ドキュメント
 
 ### マニュアルと API リファレンスは[ドキュメント](https://ruccho.com/YAUI/ja/)を参照してください。
+
+## ライセンス
+
+[MIT](LICENSE)。Flexbox のレイアウトエンジンは Microsoft.UI.Reactor に含まれる Yoga の C# 移植を元にしています。[Third Party Notices](Packages/com.ruccho.yaui/Third%20Party%20Notices.md) を参照してください。

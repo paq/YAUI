@@ -1,4 +1,4 @@
-// Vendored for YAUI from microsoft/microsoft-ui-reactor (MIT, see LICENSE-Reactor.txt)
+// Vendored for YAUI from microsoft/microsoft-ui-reactor (MIT, see Third Party Notices.md at the package root)
 // src/Reactor/Yoga/YogaConfig.cs at a58008a1be0d, itself a C# port of Meta's Yoga (MIT).
 // Changes: namespace; YAUI uses one fixed configuration (the defaults), so the config is a constant struct
 // (unmanaged, for Burst).

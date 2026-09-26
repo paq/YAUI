@@ -54,3 +54,7 @@ https://github.com/ruccho/YAUI.git?path=/Packages/com.ruccho.yaui
 ## Documentation
 
 ### See the [documentation](https://ruccho.com/YAUI) for the manual and the API reference.
+
+## License
+
+[MIT](LICENSE). The flex layout engine is based on the C# port of Yoga in Microsoft.UI.Reactor; see [Third Party Notices](Packages/com.ruccho.yaui/Third%20Party%20Notices.md).

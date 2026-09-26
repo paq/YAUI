@@ -1,4 +1,4 @@
-// Vendored for YAUI from microsoft/microsoft-ui-reactor (MIT, see LICENSE-Reactor.txt)
+// Vendored for YAUI from microsoft/microsoft-ui-reactor (MIT, see Third Party Notices.md at the package root)
 // src/Reactor/Yoga/YogaNode.cs at a58008a1be0d, itself a C# port of Meta's Yoga (MIT).
 // Changes: namespace; layout boundaries (dirtiness from children stops at nodes of fixed size, see
 // IsLayoutBoundary); the node is an unmanaged record (NodeData) referenced by pointer (YogaNode), so that the

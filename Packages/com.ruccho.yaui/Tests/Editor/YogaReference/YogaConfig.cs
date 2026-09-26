@@ -1,5 +1,5 @@
 #nullable enable annotations
-// Vendored for YAUI from microsoft/microsoft-ui-reactor (MIT, see LICENSE-Reactor.txt)
+// Vendored for YAUI from microsoft/microsoft-ui-reactor (MIT, see Third Party Notices.md at the package root)
 // src/Reactor/Yoga/YogaConfig.cs at a58008a1be0d, itself a C# port of Meta's Yoga (MIT).
 // Changes: namespace, C# 9 compatibility (InlineArray buffers replaced with arrays).
 
