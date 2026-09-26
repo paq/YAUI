@@ -18,18 +18,18 @@ namespace Yaui
         {
         }
 
-        [SerializeField] YauiElement fill;
-        [SerializeField] YauiElement handle;
-        [SerializeField] TrackDirection direction = TrackDirection.LeftToRight;
-        [SerializeField] float minValue;
-        [SerializeField] float maxValue = 1f;
-        [SerializeField] bool wholeNumbers;
-        [SerializeField] float value;
-        [SerializeField] SliderEvent onValueChanged = new();
+        [SerializeField] private YauiElement fill;
+        [SerializeField] private YauiElement handle;
+        [SerializeField] private TrackDirection direction = TrackDirection.LeftToRight;
+        [SerializeField] private float minValue;
+        [SerializeField] private float maxValue = 1f;
+        [SerializeField] private bool wholeNumbers;
+        [SerializeField] private float value;
+        [SerializeField] private SliderEvent onValueChanged = new();
 
         // Where in the handle the pointer grabbed it, along the axis in canvas units.
-        [NonSerialized] float grabOffset;
-        [NonSerialized] TrackDirection? appliedDirection;
+        [NonSerialized] private float grabOffset;
+        [NonSerialized] private TrackDirection? appliedDirection;
 
         public YauiElement Fill
         {
@@ -110,10 +110,13 @@ namespace Yaui
             set => onValueChanged = value ?? new SliderEvent();
         }
 
-        public void SetValueWithoutNotify(float input) => Set(input, false);
+        public void SetValueWithoutNotify(float input)
+        {
+            Set(input, false);
+        }
 
         /// <summary>The element the pointer is mapped on: the parent of the handle, or of the fill.</summary>
-        YauiElement TrackElement =>
+        private YauiElement TrackElement =>
             (handle != null ? Track.ParentOf(handle) : null) ?? (fill != null ? Track.ParentOf(fill) : null) ?? Element;
 
         protected override void OnEnable()
@@ -139,52 +142,37 @@ namespace Yaui
             }
         }
 
-        float Clamp(float input)
+        private float Clamp(float input)
         {
             var clamped = Mathf.Clamp(input, Mathf.Min(minValue, maxValue), Mathf.Max(minValue, maxValue));
             return wholeNumbers ? Mathf.Round(clamped) : clamped;
         }
 
-        void Set(float input, bool notify)
+        private void Set(float input, bool notify)
         {
             var clamped = Clamp(input);
             var changed = value != clamped;
             value = clamped;
             UpdateVisuals();
-            if (changed && notify)
-            {
-                onValueChanged.Invoke(clamped);
-            }
+            if (changed && notify) onValueChanged.Invoke(clamped);
         }
 
-        void UpdateVisuals()
+        private void UpdateVisuals()
         {
             var n = NormalizedValue;
-            if (fill != null)
-            {
-                Track.Fill(fill, direction, n);
-            }
+            if (fill != null) Track.Fill(fill, direction, n);
 
             // The inspector may change the direction: what the other axis had is cleared.
-            if (appliedDirection is { } previous && previous != direction)
-            {
-                Track.ClearAxis(handle, previous, direction);
-            }
+            if (appliedDirection is { } previous && previous != direction) Track.ClearAxis(handle, previous, direction);
 
             appliedDirection = direction;
-            if (handle != null)
-            {
-                Track.Place(handle, direction, n, -1f, Track.Extent(handle, direction) * 0.5f, false);
-            }
+            if (handle != null) Track.Place(handle, direction, n, -1f, Track.Extent(handle, direction) * 0.5f, false);
         }
 
         public override void OnPointerDown(PointerEventData eventData)
         {
             base.OnPointerDown(eventData);
-            if (!IsInteractable || eventData.button != PointerEventData.InputButton.Left)
-            {
-                return;
-            }
+            if (!IsInteractable || eventData.button != PointerEventData.InputButton.Left) return;
 
             // Grabbing the handle keeps the point under the pointer; elsewhere the value jumps there.
             grabOffset = 0f;
@@ -198,22 +186,20 @@ namespace Yaui
             MoveTo(eventData.position);
         }
 
-        public virtual void OnInitializePotentialDrag(PointerEventData eventData) => eventData.useDragThreshold = false;
+        public virtual void OnInitializePotentialDrag(PointerEventData eventData)
+        {
+            eventData.useDragThreshold = false;
+        }
 
         public virtual void OnDrag(PointerEventData eventData)
         {
-            if (IsInteractable && eventData.button == PointerEventData.InputButton.Left)
-            {
-                MoveTo(eventData.position);
-            }
+            if (IsInteractable && eventData.button == PointerEventData.InputButton.Left) MoveTo(eventData.position);
         }
 
-        void MoveTo(Vector2 screenPosition)
+        private void MoveTo(Vector2 screenPosition)
         {
             if (Track.TryFractionAt(TrackElement, direction, screenPosition, grabOffset, out var fraction))
-            {
                 NormalizedValue = Mathf.Clamp01(fraction);
-            }
         }
 
         public override void OnMove(AxisEventData eventData)
@@ -231,7 +217,7 @@ namespace Yaui
                 MoveDirection.Left when !vertical => -1f,
                 MoveDirection.Up when vertical => 1f,
                 MoveDirection.Down when vertical => -1f,
-                _ => 0f,
+                _ => 0f
             };
 
             if (sign == 0f)
@@ -241,26 +227,39 @@ namespace Yaui
             }
 
             // The screen direction of the key, in the direction of the value.
-            if (direction is TrackDirection.RightToLeft or TrackDirection.TopToBottom)
-            {
-                sign = -sign;
-            }
+            if (direction is TrackDirection.RightToLeft or TrackDirection.TopToBottom) sign = -sign;
 
             var step = wholeNumbers ? 1f : (maxValue - minValue) * 0.1f;
             Value += sign * step;
         }
 
         // The keys along the slider change its value instead of moving the selection.
-        public override YauiSelectable FindSelectableOnLeft() =>
-            Navigation.Mode == NavigationMode.Automatic && !Track.IsVertical(direction) ? null : base.FindSelectableOnLeft();
+        public override YauiSelectable FindSelectableOnLeft()
+        {
+            return Navigation.Mode == NavigationMode.Automatic && !Track.IsVertical(direction)
+                ? null
+                : base.FindSelectableOnLeft();
+        }
 
-        public override YauiSelectable FindSelectableOnRight() =>
-            Navigation.Mode == NavigationMode.Automatic && !Track.IsVertical(direction) ? null : base.FindSelectableOnRight();
+        public override YauiSelectable FindSelectableOnRight()
+        {
+            return Navigation.Mode == NavigationMode.Automatic && !Track.IsVertical(direction)
+                ? null
+                : base.FindSelectableOnRight();
+        }
 
-        public override YauiSelectable FindSelectableOnUp() =>
-            Navigation.Mode == NavigationMode.Automatic && Track.IsVertical(direction) ? null : base.FindSelectableOnUp();
+        public override YauiSelectable FindSelectableOnUp()
+        {
+            return Navigation.Mode == NavigationMode.Automatic && Track.IsVertical(direction)
+                ? null
+                : base.FindSelectableOnUp();
+        }
 
-        public override YauiSelectable FindSelectableOnDown() =>
-            Navigation.Mode == NavigationMode.Automatic && Track.IsVertical(direction) ? null : base.FindSelectableOnDown();
+        public override YauiSelectable FindSelectableOnDown()
+        {
+            return Navigation.Mode == NavigationMode.Automatic && Track.IsVertical(direction)
+                ? null
+                : base.FindSelectableOnDown();
+        }
     }
 }

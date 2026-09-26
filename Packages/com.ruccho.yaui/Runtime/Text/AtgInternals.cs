@@ -14,7 +14,7 @@ namespace Yaui.Text
     // compared with the real types at startup. Enum fields are mirrored as their underlying integer types.
 
     [StructLayout(LayoutKind.Sequential)]
-    struct NativeTextGenerationSettings
+    internal struct NativeTextGenerationSettings
     {
         public IntPtr fontAsset;
         public IntPtr textSettings;
@@ -49,7 +49,7 @@ namespace Yaui.Text
     }
 
     [StructLayout(LayoutKind.Sequential)]
-    struct NativeTextInfo
+    internal struct NativeTextInfo
     {
         public IntPtr m_MeshInfosPtr;
         public int meshInfoCount;
@@ -60,7 +60,7 @@ namespace Yaui.Text
     }
 
     [StructLayout(LayoutKind.Sequential)]
-    struct ATGMeshInfo
+    internal struct ATGMeshInfo
     {
         public IntPtr m_TextElementInfosPtr;
         public int m_TextElementCount;
@@ -68,7 +68,7 @@ namespace Yaui.Text
     }
 
     [StructLayout(LayoutKind.Sequential)]
-    struct TextCoreVertex
+    internal struct TextCoreVertex
     {
         public Vector3 position;
         public Color32 color;
@@ -77,7 +77,7 @@ namespace Yaui.Text
     }
 
     [StructLayout(LayoutKind.Sequential)]
-    struct NativeTextElementInfo
+    internal struct NativeTextElementInfo
     {
         public int glyphID;
         public TextCoreVertex bottomLeft;
@@ -91,12 +91,12 @@ namespace Yaui.Text
     /// signatures become typed delegates. Methods that pass internal structs become managed function pointers
     /// (<see cref="RuntimeMethodHandle.GetFunctionPointer"/>) called with the mirror structs above.
     /// </summary>
-    static unsafe class AtgInternals
+    internal static unsafe class AtgInternals
     {
-        const BindingFlags AnyStatic = BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Static;
-        const BindingFlags AnyInstance = BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance;
+        private const BindingFlags AnyStatic = BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Static;
+        private const BindingFlags AnyInstance = BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance;
 
-        static bool initialized;
+        private static bool initialized;
 
         public static bool Available { get; private set; }
 
@@ -110,15 +110,21 @@ namespace Yaui.Text
         public static delegate*<NativeTextGenerationSettings> GetDefaultSettings;
         public static delegate*<object, NativeTextGenerationSettings, IntPtr, ref bool, NativeTextInfo> GenerateText;
         public static delegate*<object, NativeTextInfo, ref Dictionary<EntityId, HashSet<uint>>, bool> HasMissingGlyphs;
-        public static delegate*<object, NativeTextInfo, NativeTextGenerationSettings, ref List<List<List<int>>>, bool, void> ProcessMeshInfos;
+
+        public static delegate*<object, NativeTextInfo, NativeTextGenerationSettings, ref List<List<List<int>>>, bool,
+            void> ProcessMeshInfos;
+
         public static delegate*<object, Dictionary<EntityId, HashSet<uint>>, bool> ResolveFallbacks;
         public static delegate*<object, NativeTextInfo, void> TextInfoListAdd;
         public static delegate*<object, void> TextInfoListClear;
 
         /// <summary>A <c>List&lt;NativeTextInfo&gt;</c> for <see cref="ResolveFallbacks"/>.</summary>
-        public static object CreateTextInfoList() => Activator.CreateInstance(textInfoListType);
+        public static object CreateTextInfoList()
+        {
+            return Activator.CreateInstance(textInfoListType);
+        }
 
-        static Type textInfoListType;
+        private static Type textInfoListType;
 
         // Typed delegates.
         public static Func<bool, IntPtr> CreateGenerationInfo;
@@ -140,10 +146,7 @@ namespace Yaui.Text
         /// <summary>Main thread: resolves everything once. Returns <see cref="Available"/>.</summary>
         public static bool Initialize()
         {
-            if (initialized)
-            {
-                return Available;
-            }
+            if (initialized) return Available;
 
             initialized = true;
             try
@@ -155,13 +158,14 @@ namespace Yaui.Text
             {
                 Error = e.Message;
                 Available = false;
-                Debug.LogWarning($"[YAUI] Text is unavailable: the internal TextCore APIs of this Unity version do not match ({e.Message})");
+                Debug.LogWarning(
+                    $"[YAUI] Text is unavailable: the internal TextCore APIs of this Unity version do not match ({e.Message})");
             }
 
             return Available;
         }
 
-        static void Resolve()
+        private static void Resolve()
         {
             var asm = typeof(FontAsset).Assembly;
             var textLibType = GetType(asm, "UnityEngine.TextCore.Text.TextLib");
@@ -181,10 +185,7 @@ namespace Yaui.Text
             ValidateLayout(typeof(ATGMeshInfo), meshInfoType, errors);
             ValidateLayout(typeof(NativeTextElementInfo), elementType, errors);
             ValidateLayout(typeof(TextCoreVertex), vertexType, errors);
-            if (errors.Length > 0)
-            {
-                throw new InvalidOperationException("Layout mismatch:" + errors);
-            }
+            if (errors.Length > 0) throw new InvalidOperationException("Layout mismatch:" + errors);
 
             var missingGlyphs = typeof(Dictionary<EntityId, HashSet<uint>>);
             var indicesByMesh = typeof(List<List<List<int>>>);
@@ -194,9 +195,10 @@ namespace Yaui.Text
             GenerateText = (delegate*<object, NativeTextGenerationSettings, IntPtr, ref bool, NativeTextInfo>)Pointer(
                 GetMethod(textLibType, "GenerateText", AnyInstance, textInfoType,
                     settingsType, typeof(IntPtr), typeof(bool).MakeByRefType()));
-            HasMissingGlyphs = (delegate*<object, NativeTextInfo, ref Dictionary<EntityId, HashSet<uint>>, bool>)Pointer(
-                GetMethod(textLibType, "HasMissingGlyphs", AnyInstance, typeof(bool),
-                    textInfoType, missingGlyphs.MakeByRefType()));
+            HasMissingGlyphs =
+                (delegate*<object, NativeTextInfo, ref Dictionary<EntityId, HashSet<uint>>, bool>)Pointer(
+                    GetMethod(textLibType, "HasMissingGlyphs", AnyInstance, typeof(bool),
+                        textInfoType, missingGlyphs.MakeByRefType()));
             ProcessMeshInfos =
                 (delegate*<object, NativeTextInfo, NativeTextGenerationSettings, ref List<List<List<int>>>, bool, void>)
                 Pointer(GetMethod(textLibType, "ProcessMeshInfos", AnyInstance, typeof(void),
@@ -214,11 +216,9 @@ namespace Yaui.Text
             var getTextLib = GetMethod(generatorType, "GetTextLib", AnyStatic, textLibType);
             TextLib = getTextLib.Invoke(null, null);
             if (icuData != null)
-            {
                 // A TextLib created earlier (by UI Toolkit) did not see it.
                 textLibType.GetMethod("TryLoadICUData", AnyStatic, null, new[] { typeof(byte[]) }, null)
                     ?.Invoke(null, new object[] { icuData.bytes });
-            }
 
             CreateGenerationInfo = Delegate<Func<bool, IntPtr>>(generationInfoType, "Create", AnyStatic);
             DestroyGenerationInfo = Delegate<Action<IntPtr>>(generationInfoType, "Destroy", AnyStatic);
@@ -238,8 +238,10 @@ namespace Yaui.Text
             GetCachedFontAsset = Delegate<Func<TextSettings, Font, bool, FontAsset>>(typeof(TextSettings),
                 "GetCachedFontAsset", AnyInstance);
 
-            int EnumValue(string field, string name) =>
-                System.Convert.ToInt32(Enum.Parse(settingsType.GetField(field, AnyInstance)!.FieldType, name));
+            int EnumValue(string field, string name)
+            {
+                return Convert.ToInt32(Enum.Parse(settingsType.GetField(field, AnyInstance)!.FieldType, name));
+            }
 
             HorizontalLeft = EnumValue("horizontalAlignment", "Left");
             HorizontalCenter = EnumValue("horizontalAlignment", "Center");
@@ -260,12 +262,9 @@ namespace Yaui.Text
         /// built-in resources; players only if a loaded asset references it, which <see cref="YauiTextData"/> in
         /// Resources does. Loaded before the first TextLib, which then finds it.
         /// </summary>
-        static UnityEngine.TextAsset LoadIcuData()
+        private static UnityEngine.TextAsset LoadIcuData()
         {
-            if (Application.isEditor)
-            {
-                return null;
-            }
+            if (Application.isEditor) return null;
 
             var data = Resources.Load<YauiTextData>(YauiTextData.ResourcePath);
             if (data == null || data.IcuData == null)
@@ -277,34 +276,34 @@ namespace Yaui.Text
             return data.IcuData;
         }
 
-        static Type GetType(Assembly asm, string name) =>
-            asm.GetType(name) ?? throw new MissingMemberException($"Type {name} not found.");
+        private static Type GetType(Assembly asm, string name)
+        {
+            return asm.GetType(name) ?? throw new MissingMemberException($"Type {name} not found.");
+        }
 
-        static MethodInfo GetMethod(Type type, string name, BindingFlags flags, Type returnType,
+        private static MethodInfo GetMethod(Type type, string name, BindingFlags flags, Type returnType,
             params Type[] parameters)
         {
             var method = type.GetMethod(name, flags, null, parameters, null)
                          ?? throw new MissingMethodException(type.FullName, name);
             if (method.ReturnType != returnType)
-            {
                 throw new MissingMethodException(
                     $"{type.FullName}.{name} returns {method.ReturnType}, expected {returnType}.");
-            }
 
             return method;
         }
 
-        static IntPtr Pointer(MethodInfo method) => method.MethodHandle.GetFunctionPointer();
+        private static IntPtr Pointer(MethodInfo method)
+        {
+            return method.MethodHandle.GetFunctionPointer();
+        }
 
         /// <summary>Binds a method whose signature matches <typeparamref name="T"/> (open instance for instance methods).</summary>
-        static T Delegate<T>(Type type, string name, BindingFlags flags) where T : Delegate
+        private static T Delegate<T>(Type type, string name, BindingFlags flags) where T : Delegate
         {
             var invoke = typeof(T).GetMethod("Invoke")!;
             var parameters = Array.ConvertAll(invoke.GetParameters(), p => p.ParameterType);
-            if ((flags & BindingFlags.Instance) != 0)
-            {
-                parameters = parameters[1..];
-            }
+            if ((flags & BindingFlags.Instance) != 0) parameters = parameters[1..];
 
             var method = type.GetMethod(name, flags, null, parameters, null)
                          ?? throw new MissingMethodException(type.FullName, name);
@@ -312,21 +311,16 @@ namespace Yaui.Text
         }
 
         /// <summary>Checks that <paramref name="mirror"/> has the same size and field offsets and sizes as <paramref name="real"/>.</summary>
-        static void ValidateLayout(Type mirror, Type real, StringBuilder errors)
+        private static void ValidateLayout(Type mirror, Type real, StringBuilder errors)
         {
             var mirrorSize = UnsafeUtility.SizeOf(mirror);
             var realSize = UnsafeUtility.SizeOf(real);
-            if (mirrorSize != realSize)
-            {
-                errors.Append($" {real.Name} is {realSize} bytes (mirror {mirrorSize});");
-            }
+            if (mirrorSize != realSize) errors.Append($" {real.Name} is {realSize} bytes (mirror {mirrorSize});");
 
             var realFields = real.GetFields(AnyInstance);
             var mirrorFields = mirror.GetFields(AnyInstance);
             if (realFields.Length != mirrorFields.Length)
-            {
                 errors.Append($" {real.Name} has {realFields.Length} fields (mirror {mirrorFields.Length});");
-            }
 
             foreach (var mirrorField in mirrorFields)
             {
@@ -342,10 +336,8 @@ namespace Yaui.Text
                 var realFieldSize = UnsafeUtility.SizeOf(realField.FieldType);
                 var mirrorFieldSize = UnsafeUtility.SizeOf(mirrorField.FieldType);
                 if (realOffset != mirrorOffset || realFieldSize != mirrorFieldSize)
-                {
                     errors.Append(
                         $" {real.Name}.{mirrorField.Name} at {realOffset} ({realFieldSize} bytes), mirror at {mirrorOffset} ({mirrorFieldSize} bytes);");
-                }
             }
         }
     }

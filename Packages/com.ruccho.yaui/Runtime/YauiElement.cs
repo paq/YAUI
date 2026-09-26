@@ -24,43 +24,43 @@ namespace Yaui
     [AddComponentMenu("YAUI/Element")]
     public class YauiElement : MonoBehaviour
     {
-        [SerializeField] LayoutStyle layout = LayoutStyle.Default;
-        [SerializeField] BoxStyle box = BoxStyle.Default;
-        [SerializeField] TransformStyle renderTransform = TransformStyle.Identity;
-        [SerializeField] [Range(0f, 1f)] float opacity = 1f;
+        [SerializeField] private LayoutStyle layout = LayoutStyle.Default;
+        [SerializeField] private BoxStyle box = BoxStyle.Default;
+        [SerializeField] private TransformStyle renderTransform = TransformStyle.Identity;
+        [SerializeField] [Range(0f, 1f)] private float opacity = 1f;
 
         /// <summary>Clips the descendants to this box (CSS overflow: hidden).</summary>
-        [SerializeField] bool clipChildren;
+        [SerializeField] private bool clipChildren;
 
         /// <summary>
         /// Receives pointer events through <see cref="YauiRaycaster"/>. Only elements that draw something (a
         /// visible box or content) are hit, so invisible containers never block the pointer.
         /// </summary>
-        [SerializeField] bool raycastTarget = true;
+        [SerializeField] private bool raycastTarget = true;
 
         /// <summary>
         /// A custom material for the primitives of this element (not its children), or null for the uber shader.
         /// Its shader builds on Shaders/Yaui.hlsl. A change of material between elements splits the draw call.
         /// </summary>
-        [SerializeField] Material material;
+        [SerializeField] private Material material;
 
-        [NonSerialized] Color tint = Color.white;
+        [NonSerialized] private Color tint = Color.white;
 
         // Runtime state. Not serialized, so that a domain reload (which also restores private fields) does not
         // bring back slots of stores that no longer exist.
-        [NonSerialized] PanelState panel;
-        [NonSerialized] YogaNode yoga;
-        [NonSerialized] int nodeSlot;
-        [NonSerialized] int boxSlot;
-        [NonSerialized] int extSlot;
-        [NonSerialized] int clipSlot;
-        [NonSerialized] YauiMask mask;
-        [NonSerialized] bool boxDrawn;
-        [NonSerialized] LayoutStyle appliedLayout;
-        [NonSerialized] float appliedBorderWidth;
-        [NonSerialized] bool layoutApplied;
+        [NonSerialized] private PanelState panel;
+        [NonSerialized] private YogaNode yoga;
+        [NonSerialized] private int nodeSlot;
+        [NonSerialized] private int boxSlot;
+        [NonSerialized] private int extSlot;
+        [NonSerialized] private int clipSlot;
+        [NonSerialized] private YauiMask mask;
+        [NonSerialized] private bool boxDrawn;
+        [NonSerialized] private LayoutStyle appliedLayout;
+        [NonSerialized] private float appliedBorderWidth;
+        [NonSerialized] private bool layoutApplied;
         [NonSerialized] internal bool LayoutDirty;
-        [NonSerialized] bool styleDirty;
+        [NonSerialized] private bool styleDirty;
 
         /// <summary>Child elements in sibling order, read from the Transform when <see cref="ChildrenDirty"/>.</summary>
         [NonSerialized] internal readonly List<YauiElement> CachedChildren = new();
@@ -83,7 +83,10 @@ namespace Yaui
         /// <summary>Whether child elements are laid out and drawn. Leaves with measured content return false.</summary>
         internal virtual bool AcceptsChildren => true;
 
-        internal bool IsRegisteredTo(PanelState state) => panel == state && NodeSlot > 0;
+        internal bool IsRegisteredTo(PanelState state)
+        {
+            return panel == state && NodeSlot > 0;
+        }
 
         #region Properties
 
@@ -105,10 +108,7 @@ namespace Yaui
                 box = value;
                 SyncBox();
                 SyncLayout();
-                if (clipChildren)
-                {
-                    SyncNode();
-                }
+                if (clipChildren) SyncNode();
             }
         }
 
@@ -229,10 +229,7 @@ namespace Yaui
         {
             get
             {
-                if (NodeSlot <= 0)
-                {
-                    return default;
-                }
+                if (NodeSlot <= 0) return default;
 
                 var node = YauiSystem.Nodes[NodeSlot];
                 return new Rect(node.LayoutPosition, node.LayoutSize);
@@ -243,17 +240,20 @@ namespace Yaui
 
         #region Unity messages
 
-        protected virtual void OnEnable() => Register();
+        protected virtual void OnEnable()
+        {
+            Register();
+        }
 
-        protected virtual void OnDisable() => Unregister();
+        protected virtual void OnDisable()
+        {
+            Unregister();
+        }
 
         protected virtual void OnDestroy()
         {
             // The node may still be in the tree of a layout in flight; it is recycled at the next submission.
-            if (!yoga.IsNull && YauiSystem.IsInitialized)
-            {
-                Pools.ReleaseNode(yoga);
-            }
+            if (!yoga.IsNull && YauiSystem.IsInitialized) Pools.ReleaseNode(yoga);
 
             yoga = YogaNode.Null;
         }
@@ -284,20 +284,16 @@ namespace Yaui
                 var child = t.GetChild(i);
                 if (child.gameObject.activeInHierarchy && !child.TryGetComponent<YauiPanel>(out _) &&
                     child.TryGetComponent<YauiElement>(out var element))
-                {
                     CachedChildren.Add(element);
-                }
             }
         }
 
         /// <summary>This element joined or left the panel: the parent's children changed.</summary>
-        void MarkParentChildrenDirty()
+        private void MarkParentChildrenDirty()
         {
             var parent = transform.parent;
             if (parent != null && parent.TryGetComponent<YauiElement>(out var parentElement))
-            {
                 parentElement.ChildrenDirty = true;
-            }
         }
 
         protected virtual void OnValidate()
@@ -310,17 +306,17 @@ namespace Yaui
         }
 
         // Called by Unity after an Animator wrote serialized fields directly.
-        protected virtual void OnDidApplyAnimationProperties() => SyncAll();
+        protected virtual void OnDidApplyAnimationProperties()
+        {
+            SyncAll();
+        }
 
         #endregion
 
-        void Register()
+        private void Register()
         {
             var owner = GetComponentInParent<YauiPanel>();
-            if (owner == null || !owner.enabled)
-            {
-                return;
-            }
+            if (owner == null || !owner.enabled) return;
 
             panel = owner.State;
             nodeSlot = YauiSystem.Nodes.Allocate();
@@ -338,10 +334,7 @@ namespace Yaui
         /// <summary>Updates whether the box receives hits, after the box, the content or the flag changed.</summary>
         private protected void SyncHittable()
         {
-            if (NodeSlot <= 0)
-            {
-                return;
-            }
+            if (NodeSlot <= 0) return;
 
             var hittable = (byte)(raycastTarget && (box.IsVisible || HasVisibleContent) ? 1 : 0);
             ref var node = ref YauiSystem.Nodes[NodeSlot];
@@ -379,10 +372,7 @@ namespace Yaui
         /// <summary>The mask was added, removed or changed: the shape, clip and draw order change.</summary>
         internal void OnMaskChanged()
         {
-            if (NodeSlot <= 0)
-            {
-                return;
-            }
+            if (NodeSlot <= 0) return;
 
             WriteBoxRect();
             SyncNode();
@@ -394,19 +384,13 @@ namespace Yaui
         internal virtual void AppendDrawOrder(NativeList<uint> order)
         {
             // Invisible boxes are not drawn (a mask still uses their shape).
-            if (boxSlot > 0 && box.IsVisible)
-            {
-                order.Add((uint)boxSlot);
-            }
+            if (boxSlot > 0 && box.IsVisible) order.Add((uint)boxSlot);
         }
 
         /// <summary>Main thread: appends the primitives that form the shape of this element's mask.</summary>
         internal virtual void AppendMaskShape(NativeList<uint> order)
         {
-            if (boxSlot > 0)
-            {
-                order.Add((uint)boxSlot);
-            }
+            if (boxSlot > 0) order.Add((uint)boxSlot);
         }
 
         /// <summary>
@@ -420,9 +404,7 @@ namespace Yaui
             if (NodeSlot <= 0 || panel.Panel == null ||
                 !panel.Panel.TryScreenToCanvas(screenPosition, out var canvas, out _, out _) ||
                 !panel.TryCanvasToLocal(this, canvas, out var result))
-            {
                 return false;
-            }
 
             local = result;
             return true;
@@ -433,10 +415,7 @@ namespace Yaui
         {
             get
             {
-                if (NodeSlot <= 0)
-                {
-                    return default;
-                }
+                if (NodeSlot <= 0) return default;
 
                 var r = ContentRect();
                 return new Rect(r.x, r.y, r.z, r.w);
@@ -450,10 +429,7 @@ namespace Yaui
         public bool LocalToScreen(Vector2 local, out Vector2 screenPosition)
         {
             screenPosition = default;
-            if (NodeSlot <= 0 || panel.Panel == null || !panel.TryGetWorld(this, out var world))
-            {
-                return false;
-            }
+            if (NodeSlot <= 0 || panel.Panel == null || !panel.TryGetWorld(this, out var world)) return false;
 
             var canvas = world.c0 * local.x + world.c1 * local.y + world.c2;
             return panel.Panel.TryCanvasToScreen(canvas, out screenPosition);
@@ -479,10 +455,7 @@ namespace Yaui
         /// <summary>Registers again to the panel above, for example after the panel was re-enabled.</summary>
         internal void Reregister()
         {
-            if (!isActiveAndEnabled)
-            {
-                return;
-            }
+            if (!isActiveAndEnabled) return;
 
             Unregister();
             Register();
@@ -490,25 +463,16 @@ namespace Yaui
 
         internal void Unregister()
         {
-            if (NodeSlot <= 0)
-            {
-                return;
-            }
+            if (NodeSlot <= 0) return;
 
             OnUnregistering();
 
             // The stores are gone after a shutdown (domain reload), and so are the slots.
             if (YauiSystem.IsInitialized)
             {
-                if (extSlot > 0)
-                {
-                    YauiSystem.Exts.Free(extSlot);
-                }
+                if (extSlot > 0) YauiSystem.Exts.Free(extSlot);
 
-                if (clipSlot > 0)
-                {
-                    YauiSystem.Clips.Free(clipSlot);
-                }
+                if (clipSlot > 0) YauiSystem.Clips.Free(clipSlot);
 
                 YauiSystem.Primitives.Free(boxSlot);
                 YauiSystem.Nodes.Free(nodeSlot);
@@ -525,24 +489,18 @@ namespace Yaui
             panel = null;
         }
 
-        void SyncAll()
+        private void SyncAll()
         {
-            if (NodeSlot <= 0)
-            {
-                return;
-            }
+            if (NodeSlot <= 0) return;
 
             SyncLayout();
             SyncBox();
             SyncNode();
         }
 
-        void SyncLayout()
+        private void SyncLayout()
         {
-            if (NodeSlot <= 0)
-            {
-                return;
-            }
+            if (NodeSlot <= 0) return;
 
             if (!layoutApplied || !layout.Equals(appliedLayout) || box.BorderWidth != appliedBorderWidth)
             {
@@ -551,31 +509,22 @@ namespace Yaui
             }
         }
 
-        void SyncBox()
+        private void SyncBox()
         {
-            if (NodeSlot <= 0)
-            {
-                return;
-            }
+            if (NodeSlot <= 0) return;
 
             var flags = PrimitiveFlags.None;
-            if (box.BorderWidth > 0f)
-            {
-                flags |= PrimitiveFlags.Border;
-            }
+            if (box.BorderWidth > 0f) flags |= PrimitiveFlags.Border;
 
             if (box.HasShadow)
             {
                 flags |= PrimitiveFlags.Shadow;
-                if (extSlot == 0)
-                {
-                    extSlot = YauiSystem.Exts.Allocate();
-                }
+                if (extSlot == 0) extSlot = YauiSystem.Exts.Allocate();
 
                 YauiSystem.Exts[extSlot] = new PrimitiveExt
                 {
                     ShadowColor = GpuPacking.Color(box.ShadowColor),
-                    Shadow = GpuPacking.Half4(new float4(box.ShadowOffset, box.ShadowBlur, box.ShadowSpread)),
+                    Shadow = GpuPacking.Half4(new float4(box.ShadowOffset, box.ShadowBlur, box.ShadowSpread))
                 };
             }
             else if (extSlot > 0)
@@ -602,7 +551,8 @@ namespace Yaui
         internal void WriteBoxRect()
         {
             var size = YauiSystem.Nodes[NodeSlot].LayoutSize;
-            YauiSystem.Primitives[BoxSlot].Rect = box.IsVisible || mask != null ? new float4(0f, 0f, size) : float4.zero;
+            YauiSystem.Primitives[BoxSlot].Rect =
+                box.IsVisible || mask != null ? new float4(0f, 0f, size) : float4.zero;
             if (boxDrawn != box.IsVisible)
             {
                 boxDrawn = box.IsVisible;
@@ -610,12 +560,9 @@ namespace Yaui
             }
         }
 
-        void SyncNode()
+        private void SyncNode()
         {
-            if (NodeSlot <= 0)
-            {
-                return;
-            }
+            if (NodeSlot <= 0) return;
 
             // A mask also clips to its bounding rectangle: hit tests, and the vertex shader shrinks the quads.
             var clips = clipChildren || mask != null;
@@ -661,7 +608,7 @@ namespace Yaui
             }
         }
 
-        void ApplyLayoutStyle()
+        private void ApplyLayoutStyle()
         {
             var y = Yoga;
             y.PositionType = layout.Position == PositionType.Absolute
@@ -694,20 +641,17 @@ namespace Yaui
             layoutApplied = true;
 
             // The panel sizes its root element.
-            if (TryGetComponent<YauiPanel>(out _))
-            {
-                panel.ResetRootSize();
-            }
+            if (TryGetComponent<YauiPanel>(out _)) panel.ResetRootSize();
         }
 
-        enum EdgeKind
+        private enum EdgeKind
         {
             Inset,
             Margin,
-            Padding,
+            Padding
         }
 
-        static void SetEdges(YogaNode y, Edges edges, EdgeKind kind)
+        private static void SetEdges(YogaNode y, Edges edges, EdgeKind kind)
         {
             Set(YogaEdge.Left, edges.Left);
             Set(YogaEdge.Top, edges.Top);
@@ -731,11 +675,14 @@ namespace Yaui
             }
         }
 
-        static YogaValue ToYoga(Length length, YogaValue auto) => length.Unit switch
+        private static YogaValue ToYoga(Length length, YogaValue auto)
         {
-            LengthUnit.Point => YogaValue.Point(length.Value),
-            LengthUnit.Percent => YogaValue.Percent(length.Value),
-            _ => auto,
-        };
+            return length.Unit switch
+            {
+                LengthUnit.Point => YogaValue.Point(length.Value),
+                LengthUnit.Percent => YogaValue.Percent(length.Value),
+                _ => auto
+            };
+        }
     }
 }

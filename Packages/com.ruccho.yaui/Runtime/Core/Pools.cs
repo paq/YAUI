@@ -10,37 +10,43 @@ namespace Yaui.Core
     /// </summary>
     internal static class Pools
     {
-        static readonly List<YogaNode> Released = new();
-        static readonly Stack<AtgText> Texts = new();
+        private static readonly List<YogaNode> Released = new();
+        private static readonly Stack<AtgText> Texts = new();
 
-        public static YogaNode RentNode() => YogaNodeStore.Create();
+        public static YogaNode RentNode()
+        {
+            return YogaNodeStore.Create();
+        }
 
         /// <summary>Any time on the main thread: the node goes back to the pool at the next submission.</summary>
-        public static void ReleaseNode(YogaNode node) => Released.Add(node);
+        public static void ReleaseNode(YogaNode node)
+        {
+            Released.Add(node);
+        }
 
         /// <summary>Main thread, at submission (no layout in flight): detaches and resets the released nodes.</summary>
         public static void RecycleReleasedNodes()
         {
-            foreach (var node in Released)
-            {
-                YogaNodeStore.Destroy(node);
-            }
+            foreach (var node in Released) YogaNodeStore.Destroy(node);
 
             Released.Clear();
         }
 
-        public static AtgText RentText() => Texts.Count > 0 ? Texts.Pop() : new AtgText();
+        public static AtgText RentText()
+        {
+            return Texts.Count > 0 ? Texts.Pop() : new AtgText();
+        }
 
         /// <summary>Main thread: disposes the pooled text generators (their caches are stale).</summary>
         public static void ClearTexts()
         {
-            while (Texts.Count > 0)
-            {
-                Texts.Pop().Dispose();
-            }
+            while (Texts.Count > 0) Texts.Pop().Dispose();
         }
 
         /// <summary>Main thread: the text must not be generating.</summary>
-        public static void ReturnText(AtgText text) => Texts.Push(text);
+        public static void ReturnText(AtgText text)
+        {
+            Texts.Push(text);
+        }
     }
 }

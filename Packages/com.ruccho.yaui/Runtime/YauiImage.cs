@@ -16,7 +16,7 @@ namespace Yaui
         Sliced,
 
         /// <summary>A part of the simple image, by <see cref="YauiImage.FillMethod"/> and <see cref="YauiImage.FillAmount"/>.</summary>
-        Filled,
+        Filled
     }
 
     public enum FillMethod
@@ -31,20 +31,20 @@ namespace Yaui
         Radial180,
 
         /// <summary>A full circle around the center (<see cref="FillOrigin360"/>).</summary>
-        Radial360,
+        Radial360
     }
 
     // The values of YauiImage.FillOrigin for each fill method, like the ones of uGUI's Image.
     public enum FillOriginHorizontal
     {
         Left,
-        Right,
+        Right
     }
 
     public enum FillOriginVertical
     {
         Bottom,
-        Top,
+        Top
     }
 
     public enum FillOrigin90
@@ -52,7 +52,7 @@ namespace Yaui
         BottomLeft,
         TopLeft,
         TopRight,
-        BottomRight,
+        BottomRight
     }
 
     public enum FillOrigin180
@@ -60,7 +60,7 @@ namespace Yaui
         Bottom,
         Left,
         Top,
-        Right,
+        Right
     }
 
     public enum FillOrigin360
@@ -68,7 +68,7 @@ namespace Yaui
         Bottom,
         Right,
         Top,
-        Left,
+        Left
     }
 
     /// <summary>
@@ -78,28 +78,28 @@ namespace Yaui
     [AddComponentMenu("YAUI/Image")]
     public class YauiImage : YauiElement
     {
-        [SerializeField] Sprite sprite;
-        [SerializeField] Color color = Color.white;
-        [SerializeField] ImageType type = ImageType.Simple;
+        [SerializeField] private Sprite sprite;
+        [SerializeField] private Color color = Color.white;
+        [SerializeField] private ImageType type = ImageType.Simple;
 
         /// <summary>Sliced: canvas units per pixel of the sprite borders.</summary>
-        [SerializeField] float borderScale = 1f;
+        [SerializeField] private float borderScale = 1f;
 
-        [SerializeField] FillMethod fillMethod = FillMethod.Radial360;
+        [SerializeField] private FillMethod fillMethod = FillMethod.Radial360;
 
         /// <summary>Where the fill starts: a value of the FillOrigin enum of <see cref="fillMethod"/>.</summary>
-        [SerializeField] int fillOrigin;
+        [SerializeField] private int fillOrigin;
 
-        [SerializeField] [Range(0f, 1f)] float fillAmount = 1f;
+        [SerializeField] [Range(0f, 1f)] private float fillAmount = 1f;
 
         /// <summary>Radial fills: clockwise on screen.</summary>
-        [SerializeField] bool fillClockwise = true;
+        [SerializeField] private bool fillClockwise = true;
 
-        [NonSerialized] int start;
-        [NonSerialized] int capacity;
-        [NonSerialized] Sprite boundSprite;
-        [NonSerialized] Sprite overrideSprite;
-        [NonSerialized] SpriteTexture spriteTexture;
+        [NonSerialized] private int start;
+        [NonSerialized] private int capacity;
+        [NonSerialized] private Sprite boundSprite;
+        [NonSerialized] private Sprite overrideSprite;
+        [NonSerialized] private SpriteTexture spriteTexture;
 
         public Sprite Sprite
         {
@@ -125,7 +125,7 @@ namespace Yaui
             }
         }
 
-        Sprite ActiveSprite => overrideSprite != null ? overrideSprite : sprite;
+        private Sprite ActiveSprite => overrideSprite != null ? overrideSprite : sprite;
 
         public Color Color
         {
@@ -212,21 +212,18 @@ namespace Yaui
             SyncImage();
         }
 
-        private protected override void OnRegistered() => SyncImage();
+        private protected override void OnRegistered()
+        {
+            SyncImage();
+        }
 
         private protected override void OnUnregistering()
         {
             if (YauiSystem.IsInitialized)
             {
-                if (capacity > 0)
-                {
-                    YauiSystem.Primitives.FreeRange(start, capacity);
-                }
+                if (capacity > 0) YauiSystem.Primitives.FreeRange(start, capacity);
 
-                if (spriteTexture.IsValid)
-                {
-                    YauiSystem.Textures.ReleaseSprite(boundSprite, spriteTexture);
-                }
+                if (spriteTexture.IsValid) YauiSystem.Textures.ReleaseSprite(boundSprite, spriteTexture);
             }
 
             start = 0;
@@ -235,9 +232,15 @@ namespace Yaui
             spriteTexture = default;
         }
 
-        internal override void OnLayoutApplied() => SyncImage();
+        internal override void OnLayoutApplied()
+        {
+            SyncImage();
+        }
 
-        private protected override void OnBoxChanged() => SyncImage();
+        private protected override void OnBoxChanged()
+        {
+            SyncImage();
+        }
 
         /// <summary>With a sprite, a mask on the image takes the shape of the sprite's alpha.</summary>
         internal override void AppendMaskShape(NativeList<uint> order)
@@ -248,47 +251,32 @@ namespace Yaui
                 return;
             }
 
-            for (var i = 0; i < capacity; i++)
-            {
-                order.Add((uint)(start + i));
-            }
+            for (var i = 0; i < capacity; i++) order.Add((uint)(start + i));
         }
 
         internal override void AppendDrawOrder(NativeList<uint> order)
         {
             base.AppendDrawOrder(order);
-            for (var i = 0; i < capacity; i++)
-            {
-                order.Add((uint)(start + i));
-            }
+            for (var i = 0; i < capacity; i++) order.Add((uint)(start + i));
         }
 
         /// <summary>Writes the image primitives from the sprite and the laid-out content box.</summary>
-        void SyncImage()
+        private void SyncImage()
         {
-            if (NodeSlot <= 0)
-            {
-                return;
-            }
+            if (NodeSlot <= 0) return;
 
             SyncHittable();
             var active = ActiveSprite;
             if (active != boundSprite)
             {
                 var previousId = spriteTexture.TextureId;
-                if (spriteTexture.IsValid)
-                {
-                    YauiSystem.Textures.ReleaseSprite(boundSprite, spriteTexture);
-                }
+                if (spriteTexture.IsValid) YauiSystem.Textures.ReleaseSprite(boundSprite, spriteTexture);
 
                 boundSprite = active;
                 spriteTexture = active != null ? YauiSystem.Textures.AcquireSprite(active) : default;
 
                 // Draws are split by the textures they use.
-                if (spriteTexture.TextureId != previousId)
-                {
-                    Panel.OrderDirty = true;
-                }
+                if (spriteTexture.TextureId != previousId) Panel.OrderDirty = true;
             }
 
             var count = active == null ? 0 : type == ImageType.Sliced ? 9 : 1;
@@ -296,10 +284,7 @@ namespace Yaui
             var primitives = YauiSystem.Primitives;
             if (needed != capacity)
             {
-                if (capacity > 0)
-                {
-                    primitives.FreeRange(start, capacity);
-                }
+                if (capacity > 0) primitives.FreeRange(start, capacity);
 
                 start = needed > 0 ? primitives.AllocateRange(needed) : 0;
                 capacity = needed;
@@ -308,37 +293,38 @@ namespace Yaui
 
             var written = 0;
             if (count > 0 && spriteTexture.IsValid)
-            {
                 written = type switch
                 {
                     ImageType.Sliced => WriteSliced(),
                     ImageType.Filled => WriteFilled(),
-                    _ => WriteSimple(),
+                    _ => WriteSimple()
                 };
-            }
 
-            for (var i = written; i < capacity; i++)
-            {
-                primitives[start + i] = default;
-            }
+            for (var i = written; i < capacity; i++) primitives[start + i] = default;
 
             YauiSystem.RequestUpdate();
         }
 
         /// <summary>UVs of the sprite: u0 / u1 left and right, v0 / v1 bottom and top (textures are Y up).</summary>
-        float4 SpriteUv() => spriteTexture.Uv;
-
-        PrimitiveData Primitive(float4 rect, float4 uvAtMinMax, uint2 radii) => new()
+        private float4 SpriteUv()
         {
-            Rect = rect,
-            UvRect = GpuPacking.Unorm16x4(uvAtMinMax),
-            Color = GpuPacking.Color(color),
-            Radii = radii,
-            Node = (uint)NodeSlot,
-            Flags = PrimitiveTexture.With(PrimitiveFlags.Image, spriteTexture.TextureId),
-        };
+            return spriteTexture.Uv;
+        }
 
-        int WriteSimple()
+        private PrimitiveData Primitive(float4 rect, float4 uvAtMinMax, uint2 radii)
+        {
+            return new PrimitiveData
+            {
+                Rect = rect,
+                UvRect = GpuPacking.Unorm16x4(uvAtMinMax),
+                Color = GpuPacking.Color(color),
+                Radii = radii,
+                Node = (uint)NodeSlot,
+                Flags = PrimitiveTexture.With(PrimitiveFlags.Image, spriteTexture.TextureId)
+            };
+        }
+
+        private int WriteSimple()
         {
             var uv = SpriteUv();
 
@@ -351,7 +337,7 @@ namespace Yaui
         /// <summary>The range of the image primitives (tests).</summary>
         internal (int Start, int Capacity) PrimitiveRange => (start, capacity);
 
-        int WriteFilled()
+        private int WriteFilled()
         {
             var rect = ContentRect();
             var uv = SpriteUv();
@@ -369,10 +355,7 @@ namespace Yaui
                     : fillOrigin == (int)FillOriginVertical.Bottom;
                 var size = rect[axis + 2];
                 var filled = size * amount;
-                if (filled <= 0f)
-                {
-                    return 0;
-                }
+                if (filled <= 0f) return 0;
 
                 var uvFrom = uvRect[axis];
                 var uvTo = uvRect[axis + 2];
@@ -394,10 +377,8 @@ namespace Yaui
             {
                 RadialFill(out var center, out var from, out var range);
                 if (!fillClockwise && range < math.PI * 2f)
-                {
                     // A quarter or a half circle filled counter-clockwise starts from the other end of its range.
                     from += range;
-                }
 
                 p.Flags |= PrimitiveFlags.RadialFill;
                 p.BorderColor = GpuPacking.Half4(new float4(center, from, range * amount * (fillClockwise ? 1f : -1f)));
@@ -408,15 +389,15 @@ namespace Yaui
         }
 
         // Angles in radians, growing clockwise on screen (Y down).
-        const float Right = 0f;
-        const float Down = math.PI * 0.5f;
-        const float Left = math.PI;
-        const float Up = -math.PI * 0.5f;
+        private const float Right = 0f;
+        private const float Down = math.PI * 0.5f;
+        private const float Left = math.PI;
+        private const float Up = -math.PI * 0.5f;
 
         /// <summary>
         /// The center (0..1 of the rect, Y down), the start of a clockwise fill and the angle of the full fill.
         /// </summary>
-        void RadialFill(out float2 center, out float from, out float range)
+        private void RadialFill(out float2 center, out float from, out float range)
         {
             switch (fillMethod)
             {
@@ -427,7 +408,7 @@ namespace Yaui
                         FillOrigin90.TopLeft => (new float2(0f, 0f), Right),
                         FillOrigin90.TopRight => (new float2(1f, 0f), Down),
                         FillOrigin90.BottomRight => (new float2(1f, 1f), Left),
-                        _ => (new float2(0f, 1f), Up),
+                        _ => (new float2(0f, 1f), Up)
                     };
                     break;
                 case FillMethod.Radial180:
@@ -437,7 +418,7 @@ namespace Yaui
                         FillOrigin180.Left => (new float2(0f, 0.5f), Up),
                         FillOrigin180.Top => (new float2(0.5f, 0f), Right),
                         FillOrigin180.Right => (new float2(1f, 0.5f), Down),
-                        _ => (new float2(0.5f, 1f), Left),
+                        _ => (new float2(0.5f, 1f), Left)
                     };
                     break;
                 default:
@@ -448,13 +429,13 @@ namespace Yaui
                         FillOrigin360.Right => Right,
                         FillOrigin360.Top => Up,
                         FillOrigin360.Left => Left,
-                        _ => Down,
+                        _ => Down
                     };
                     break;
             }
         }
 
-        int WriteSliced()
+        private int WriteSliced()
         {
             var rect = ContentRect();
             var uv = SpriteUv();
@@ -477,10 +458,7 @@ namespace Yaui
             for (var column = 0; column < 3; column++)
             {
                 var size = new float2(xs[column + 1] - xs[column], ys[row + 1] - ys[row]);
-                if (size.x <= 0f || size.y <= 0f)
-                {
-                    continue;
-                }
+                if (size.x <= 0f || size.y <= 0f) continue;
 
                 var cell = new float4(rect.x + xs[column], rect.y + ys[row], size);
                 var cellUv = new float4(us[column], vs[row], us[column + 1], vs[row + 1]);

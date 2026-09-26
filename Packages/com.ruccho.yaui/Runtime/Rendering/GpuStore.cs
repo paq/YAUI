@@ -14,15 +14,15 @@ namespace Yaui.Rendering
     {
         public const int ChunkShift = 6;
 
-        NativeList<T> items;
-        NativeList<int> free;
+        private NativeList<T> items;
+        private NativeList<int> free;
 
         // Free blocks of AllocateRange by capacity.
-        readonly Dictionary<int, Stack<int>> freeRanges = new();
+        private readonly Dictionary<int, Stack<int>> freeRanges = new();
 
         // One bit per chunk.
-        NativeList<ulong> dirtyChunks;
-        GraphicsBuffer buffer;
+        private NativeList<ulong> dirtyChunks;
+        private GraphicsBuffer buffer;
 
         /// <param name="reserved">Slots at the start that are never allocated, such as index 0 meaning "none".</param>
         public GpuStore(int capacity, int reserved = 0)
@@ -30,10 +30,7 @@ namespace Yaui.Rendering
             items = new NativeList<T>(Math.Max(capacity, reserved + 1), Allocator.Persistent);
             free = new NativeList<int>(64, Allocator.Persistent);
             dirtyChunks = new NativeList<ulong>(16, Allocator.Persistent);
-            for (var i = 0; i < reserved; i++)
-            {
-                items.Add(default);
-            }
+            for (var i = 0; i < reserved; i++) items.Add(default);
 
             EnsureDirtyCapacity();
             MarkAllDirty();
@@ -44,7 +41,10 @@ namespace Yaui.Rendering
         public GraphicsBuffer Buffer => buffer;
 
         /// <summary>Records by slot, for jobs. Valid until the next <see cref="Allocate"/>.</summary>
-        public NativeArray<T> AsArray() => items.AsArray();
+        public NativeArray<T> AsArray()
+        {
+            return items.AsArray();
+        }
 
         /// <summary>Dirty chunk bits, for jobs that write records. Valid until the next <see cref="Allocate"/>.</summary>
         public NativeArray<ulong> DirtyChunks => dirtyChunks.AsArray();
@@ -70,27 +70,21 @@ namespace Yaui.Rendering
         }
 
         /// <summary>Rounds a count up to the capacity of a block (a power of two, at least 4).</summary>
-        public static int RangeCapacity(int count) => Math.Max(4, (int)Unity.Mathematics.math.ceilpow2((uint)count));
+        public static int RangeCapacity(int count)
+        {
+            return Math.Max(4, (int)Unity.Mathematics.math.ceilpow2((uint)count));
+        }
 
         /// <summary>Allocates <paramref name="capacity"/> contiguous slots (see <see cref="RangeCapacity"/>).</summary>
         public int AllocateRange(int capacity)
         {
-            if (freeRanges.TryGetValue(capacity, out var stack) && stack.Count > 0)
-            {
-                return stack.Pop();
-            }
+            if (freeRanges.TryGetValue(capacity, out var stack) && stack.Count > 0) return stack.Pop();
 
             var start = items.Length;
-            for (var i = 0; i < capacity; i++)
-            {
-                items.Add(default);
-            }
+            for (var i = 0; i < capacity; i++) items.Add(default);
 
             EnsureDirtyCapacity();
-            for (var i = 0; i < capacity; i += 1 << ChunkShift)
-            {
-                MarkDirty(start + i);
-            }
+            for (var i = 0; i < capacity; i += 1 << ChunkShift) MarkDirty(start + i);
 
             MarkDirty(start + capacity - 1);
             return start;
@@ -104,10 +98,7 @@ namespace Yaui.Rendering
                 MarkDirty(start + i);
             }
 
-            if (!freeRanges.TryGetValue(capacity, out var stack))
-            {
-                freeRanges[capacity] = stack = new Stack<int>();
-            }
+            if (!freeRanges.TryGetValue(capacity, out var stack)) freeRanges[capacity] = stack = new Stack<int>();
 
             stack.Push(start);
         }
@@ -129,9 +120,15 @@ namespace Yaui.Rendering
             }
         }
 
-        public T Read(int slot) => items[slot];
+        public T Read(int slot)
+        {
+            return items[slot];
+        }
 
-        public void MarkDirty(int slot) => MarkDirty(dirtyChunks.AsArray(), slot);
+        public void MarkDirty(int slot)
+        {
+            MarkDirty(dirtyChunks.AsArray(), slot);
+        }
 
         /// <summary>Marks the chunk of <paramref name="slot"/> dirty. Usable from jobs with <see cref="DirtyChunks"/>.</summary>
         public static void MarkDirty(NativeArray<ulong> dirtyChunks, int slot)
@@ -140,22 +137,16 @@ namespace Yaui.Rendering
             dirtyChunks[chunk >> 6] |= 1ul << (chunk & 63);
         }
 
-        void MarkAllDirty()
+        private void MarkAllDirty()
         {
-            for (var i = 0; i < dirtyChunks.Length; i++)
-            {
-                dirtyChunks[i] = ~0ul;
-            }
+            for (var i = 0; i < dirtyChunks.Length; i++) dirtyChunks[i] = ~0ul;
         }
 
-        void EnsureDirtyCapacity()
+        private void EnsureDirtyCapacity()
         {
             var chunks = (items.Length + (1 << ChunkShift) - 1) >> ChunkShift;
             var words = (chunks + 63) >> 6;
-            while (dirtyChunks.Length < words)
-            {
-                dirtyChunks.Add(0);
-            }
+            while (dirtyChunks.Length < words) dirtyChunks.Add(0);
         }
 
         /// <summary>Sends the dirty chunks, recreating the buffer if it is too small. Returns the buffer.</summary>
@@ -175,10 +166,7 @@ namespace Yaui.Rendering
             for (var word = 0; word < dirtyChunks.Length; word++)
             {
                 var bits = dirtyChunks[word];
-                if (bits == 0ul && runStart < 0)
-                {
-                    continue;
-                }
+                if (bits == 0ul && runStart < 0) continue;
 
                 for (var bit = 0; bit < 64; bit++)
                 {
@@ -198,21 +186,15 @@ namespace Yaui.Rendering
                 dirtyChunks[word] = 0ul;
             }
 
-            if (runStart >= 0)
-            {
-                UploadRun(array, runStart * chunkSize, array.Length);
-            }
+            if (runStart >= 0) UploadRun(array, runStart * chunkSize, array.Length);
 
             return buffer;
         }
 
-        void UploadRun(NativeArray<T> array, int start, int end)
+        private void UploadRun(NativeArray<T> array, int start, int end)
         {
             end = Math.Min(end, array.Length);
-            if (end > start)
-            {
-                buffer.SetData(array, start, start, end - start);
-            }
+            if (end > start) buffer.SetData(array, start, start, end - start);
         }
 
         public void Dispose()

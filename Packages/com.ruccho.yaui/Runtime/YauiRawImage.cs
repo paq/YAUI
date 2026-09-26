@@ -15,15 +15,15 @@ namespace Yaui
     [AddComponentMenu("YAUI/Raw Image")]
     public class YauiRawImage : YauiElement
     {
-        [SerializeField] Texture texture;
-        [SerializeField] Color color = Color.white;
+        [SerializeField] private Texture texture;
+        [SerializeField] private Color color = Color.white;
 
         /// <summary>The part of the texture drawn, in UVs within 0..1 (Y up). Textures do not repeat.</summary>
-        [SerializeField] Rect uvRect = new(0f, 0f, 1f, 1f);
+        [SerializeField] private Rect uvRect = new(0f, 0f, 1f, 1f);
 
-        [NonSerialized] int slot;
-        [NonSerialized] Texture boundTexture;
-        [NonSerialized] int textureId;
+        [NonSerialized] private int slot;
+        [NonSerialized] private Texture boundTexture;
+        [NonSerialized] private int textureId;
 
         public Texture Texture
         {
@@ -69,16 +69,16 @@ namespace Yaui
             SyncImage();
         }
 
-        private protected override void OnRegistered() => SyncImage();
+        private protected override void OnRegistered()
+        {
+            SyncImage();
+        }
 
         private protected override void OnUnregistering()
         {
             if (YauiSystem.IsInitialized)
             {
-                if (slot > 0)
-                {
-                    YauiSystem.Primitives.Free(slot);
-                }
+                if (slot > 0) YauiSystem.Primitives.Free(slot);
 
                 YauiSystem.Textures.Release(textureId);
             }
@@ -88,9 +88,15 @@ namespace Yaui
             textureId = 0;
         }
 
-        internal override void OnLayoutApplied() => SyncImage();
+        internal override void OnLayoutApplied()
+        {
+            SyncImage();
+        }
 
-        private protected override void OnBoxChanged() => SyncImage();
+        private protected override void OnBoxChanged()
+        {
+            SyncImage();
+        }
 
         /// <summary>With a texture, a mask on the image takes the shape of the texture's alpha.</summary>
         internal override void AppendMaskShape(NativeList<uint> order)
@@ -107,21 +113,15 @@ namespace Yaui
         internal override void AppendDrawOrder(NativeList<uint> order)
         {
             base.AppendDrawOrder(order);
-            if (slot > 0)
-            {
-                order.Add((uint)slot);
-            }
+            if (slot > 0) order.Add((uint)slot);
         }
 
         /// <summary>The image primitive, or 0 (tests).</summary>
         internal int PrimitiveSlot => slot;
 
-        void SyncImage()
+        private void SyncImage()
         {
-            if (NodeSlot <= 0)
-            {
-                return;
-            }
+            if (NodeSlot <= 0) return;
 
             SyncHittable();
             if (texture != boundTexture)
@@ -132,10 +132,7 @@ namespace Yaui
                 YauiSystem.Textures.Release(previousId);
 
                 // Draws are split by the textures they use.
-                if (textureId != previousId)
-                {
-                    Panel.OrderDirty = true;
-                }
+                if (textureId != previousId) Panel.OrderDirty = true;
             }
 
             var primitives = YauiSystem.Primitives;
@@ -166,7 +163,7 @@ namespace Yaui
                 Color = GpuPacking.Color(color),
                 Radii = GpuPacking.Half4(Box.CornerRadius),
                 Node = (uint)NodeSlot,
-                Flags = PrimitiveTexture.With(PrimitiveFlags.Image, textureId),
+                Flags = PrimitiveTexture.With(PrimitiveFlags.Image, textureId)
             };
             YauiSystem.RequestUpdate();
         }

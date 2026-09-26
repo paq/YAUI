@@ -8,7 +8,7 @@ namespace Yaui
     [AddComponentMenu("YAUI/Button")]
     public class YauiButton : YauiSelectable, IPointerClickHandler, ISubmitHandler
     {
-        [SerializeField] UnityEvent onClick = new();
+        [SerializeField] private UnityEvent onClick = new();
 
         public UnityEvent OnClick
         {
@@ -18,10 +18,7 @@ namespace Yaui
 
         public virtual void OnPointerClick(PointerEventData eventData)
         {
-            if (eventData.button == PointerEventData.InputButton.Left)
-            {
-                Press();
-            }
+            if (eventData.button == PointerEventData.InputButton.Left) Press();
         }
 
         public virtual void OnSubmit(BaseEventData eventData)
@@ -30,12 +27,9 @@ namespace Yaui
             FlashPressed();
         }
 
-        void Press()
+        private void Press()
         {
-            if (IsInteractable)
-            {
-                onClick.Invoke();
-            }
+            if (IsInteractable) onClick.Invoke();
         }
     }
 }

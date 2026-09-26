@@ -14,15 +14,15 @@ namespace Yaui.Text
     /// </summary>
     internal sealed class FallbackText
     {
-        static readonly List<Vector3> Vertices = new();
-        static readonly List<Vector2> Uvs = new();
-        static readonly List<Color32> Colors = new();
-        static readonly List<int> Indices = new();
+        private static readonly List<Vector3> Vertices = new();
+        private static readonly List<Vector2> Uvs = new();
+        private static readonly List<Color32> Colors = new();
+        private static readonly List<int> Indices = new();
 
-        Mesh mesh;
-        Material[] materials;
-        string text;
-        TextGenerationSettings settings;
+        private Mesh mesh;
+        private Material[] materials;
+        private string text;
+        private TextGenerationSettings settings;
 
         public bool IsGenerated { get; private set; }
 
@@ -48,7 +48,7 @@ namespace Yaui.Text
                 TextAlign.Center => HorizontalAlignment.Center,
                 TextAlign.Right => HorizontalAlignment.Right,
                 TextAlign.Justified => HorizontalAlignment.Justified,
-                _ => HorizontalAlignment.Left,
+                _ => HorizontalAlignment.Left
             };
             settings.verticalAlignment = VerticalAlignment.Top;
             IsGenerated = false;
@@ -72,10 +72,7 @@ namespace Yaui.Text
         public void Convert(List<GlyphQuad> output)
         {
             output.Clear();
-            if (mesh == null || materials == null)
-            {
-                return;
-            }
+            if (mesh == null || materials == null) return;
 
             mesh.GetVertices(Vertices);
             mesh.GetUVs(0, Uvs);
@@ -84,10 +81,7 @@ namespace Yaui.Text
             {
                 var material = materials[sub];
                 var atlas = material != null ? material.mainTexture : null;
-                if (atlas == null)
-                {
-                    continue;
-                }
+                if (atlas == null) continue;
 
                 var spread = material.HasFloat("_GradientScale") ? material.GetFloat("_GradientScale") : 0f;
                 mesh.GetIndices(Indices, sub);
@@ -108,7 +102,7 @@ namespace Yaui.Text
                         Uv = new float4(Uvs[first + 3].x, Uvs[first].y, Uvs[first + 2].x, Uvs[first + 3].y),
                         Color = Colors.Count > first ? Colors[first] : (Color32)Color.white,
                         Atlas = atlas,
-                        Spread = spread,
+                        Spread = spread
                     });
                 }
             }

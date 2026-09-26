@@ -63,35 +63,35 @@ namespace Yaui.Text
         // much empty atlas area.
         internal const int VertexPadding = 2;
 
-        static readonly ProfilerMarker GenerateMarker = new("Yaui.Text.Generate");
-        static readonly ProfilerMarker ResolveMissingMarker = new("Yaui.Text.ResolveMissingGlyphs");
-        static readonly ProfilerMarker ConvertMarker = new("Yaui.Text.Convert");
+        private static readonly ProfilerMarker GenerateMarker = new("Yaui.Text.Generate");
+        private static readonly ProfilerMarker ResolveMissingMarker = new("Yaui.Text.ResolveMissingGlyphs");
+        private static readonly ProfilerMarker ConvertMarker = new("Yaui.Text.Convert");
 
-        static TextSettings textSettings;
+        private static TextSettings textSettings;
 
         // Text settings whose default sprite asset is the sprite asset of a text: ATG resolves <sprite> through them.
-        static readonly Dictionary<SpriteAsset, TextSettings> SpriteSettings = new();
-        static object textInfoList;
-        static readonly List<uint> GlyphBuffer = new();
-        static readonly Dictionary<EntityId, HashSet<uint>> AggregatedMissingGlyphs = new();
+        private static readonly Dictionary<SpriteAsset, TextSettings> SpriteSettings = new();
+        private static object textInfoList;
+        private static readonly List<uint> GlyphBuffer = new();
+        private static readonly Dictionary<EntityId, HashSet<uint>> AggregatedMissingGlyphs = new();
 
-        IntPtr textGenerationInfo;
-        NativeTextGenerationSettings settings;
-        NativeTextInfo textInfo;
-        bool hasMissingGlyphs;
+        private IntPtr textGenerationInfo;
+        private NativeTextGenerationSettings settings;
+        private NativeTextInfo textInfo;
+        private bool hasMissingGlyphs;
 
         // ProcessMeshInfos maps the UVs in place, so it must run once per native generation: a cached generation
         // (the same text prepared again, e.g. by OnValidate after an undo) already has atlas UVs.
-        bool uvsAreGenerated;
-        bool wordWrap;
-        bool ellipsis;
+        private bool uvsAreGenerated;
+        private bool wordWrap;
+        private bool ellipsis;
 
         // Pinned so that worker threads can pass it to the native generator.
-        char[] textBuffer;
-        GCHandle textBufferHandle;
+        private char[] textBuffer;
+        private GCHandle textBufferHandle;
 
-        List<List<List<int>>> textElementIndicesByMesh = new();
-        Dictionary<EntityId, HashSet<uint>> missingGlyphs = new();
+        private List<List<List<int>>> textElementIndicesByMesh = new();
+        private Dictionary<EntityId, HashSet<uint>> missingGlyphs = new();
 
         /// <summary>Uses the public TextGenerator even if the internal APIs match (tests).</summary>
         internal static bool ForceFallback;
@@ -125,7 +125,7 @@ namespace Yaui.Text
         /// <summary>Size of the last generation.</summary>
         public float2 Size { get; private set; }
 
-        static TextSettings TextSettings
+        private static TextSettings TextSettings
         {
             get
             {
@@ -139,12 +139,9 @@ namespace Yaui.Text
             }
         }
 
-        static TextSettings SettingsFor(SpriteAsset spriteAsset)
+        private static TextSettings SettingsFor(SpriteAsset spriteAsset)
         {
-            if (spriteAsset == null)
-            {
-                return TextSettings;
-            }
+            if (spriteAsset == null) return TextSettings;
 
             if (!SpriteSettings.TryGetValue(spriteAsset, out var settings) || settings == null)
             {
@@ -158,11 +155,16 @@ namespace Yaui.Text
         }
 
         /// <summary>Main thread: the dynamic SDF font asset of a font, shared like UI Toolkit does.</summary>
-        public static FontAsset GetFontAsset(Font font) =>
-            IsSupported ? AtgInternals.GetCachedFontAsset(TextSettings, font, false) : null;
+        public static FontAsset GetFontAsset(Font font)
+        {
+            return IsSupported ? AtgInternals.GetCachedFontAsset(TextSettings, font, false) : null;
+        }
 
         /// <summary>Main thread: must be called before <see cref="Generate"/> runs on worker threads.</summary>
-        public static void PrepareForJobs() => AtgInternals.CreateHbFaceIfNeeded();
+        public static void PrepareForJobs()
+        {
+            AtgInternals.CreateHbFaceIfNeeded();
+        }
 
         /// <summary>Main thread: copies the text and builds the native settings, unconstrained in width.</summary>
         public void Prepare(ReadOnlySpan<char> text, in TextRequest request)
@@ -176,16 +178,17 @@ namespace Yaui.Text
             wordWrap = request.WordWrap;
             ellipsis = request.Ellipsis;
             if (settings.richTextEnabled && text.Length > 0)
-            {
                 AtgInternals.PreloadAssetsFromText(settings.textBufferPtr, text.Length, settings.textSettings);
-            }
 
             IsPrepared = true;
             IsGenerated = false;
         }
 
         /// <summary>Any thread: shapes and lays out the text within <paramref name="width"/> (negative: unconstrained).</summary>
-        public void Generate(float width) => Generate(width, -1f);
+        public void Generate(float width)
+        {
+            Generate(width, -1f);
+        }
 
         /// <summary>
         /// Any thread: like <see cref="Generate(float)"/>, and with <see cref="TextRequest.Ellipsis"/>, ends the text
@@ -204,25 +207,16 @@ namespace Yaui.Text
 
             var wasCached = false;
             textInfo = AtgInternals.GenerateText(AtgInternals.TextLib, settings, textGenerationInfo, ref wasCached);
-            if (!wasCached)
-            {
-                uvsAreGenerated = false;
-            }
+            if (!wasCached) uvsAreGenerated = false;
 
             Size = new float2(textInfo.totalWidth / 64f, textInfo.totalHeight / 64f);
             GeneratedWidth = constrained ? width : -1f;
             IsGenerated = true;
 
-            foreach (var set in missingGlyphs.Values)
-            {
-                set.Clear();
-            }
+            foreach (var set in missingGlyphs.Values) set.Clear();
 
             hasMissingGlyphs = AtgInternals.HasMissingGlyphs(AtgInternals.TextLib, textInfo, ref missingGlyphs);
-            if (!hasMissingGlyphs)
-            {
-                ProcessMeshInfos();
-            }
+            if (!hasMissingGlyphs) ProcessMeshInfos();
         }
 
         /// <summary>
@@ -231,58 +225,39 @@ namespace Yaui.Text
         /// </summary>
         public static void ResolveMissingGlyphs(List<AtgText> texts)
         {
-            if (texts.Count == 0)
-            {
-                return;
-            }
+            if (texts.Count == 0) return;
 
             using var _ = ResolveMissingMarker.Auto();
 
-            foreach (var set in AggregatedMissingGlyphs.Values)
-            {
-                set.Clear();
-            }
+            foreach (var set in AggregatedMissingGlyphs.Values) set.Clear();
 
             textInfoList ??= AtgInternals.CreateTextInfoList();
             AtgInternals.TextInfoListClear(textInfoList);
             var anyMissing = false;
             foreach (var text in texts)
             {
-                if (!text.hasMissingGlyphs)
-                {
-                    continue;
-                }
+                if (!text.hasMissingGlyphs) continue;
 
                 anyMissing = true;
                 AtgInternals.TextInfoListAdd(textInfoList, text.textInfo);
                 foreach (var pair in text.missingGlyphs)
                 {
-                    if (pair.Value.Count == 0)
-                    {
-                        continue;
-                    }
+                    if (pair.Value.Count == 0) continue;
 
                     if (!AggregatedMissingGlyphs.TryGetValue(pair.Key, out var set))
-                    {
                         AggregatedMissingGlyphs[pair.Key] = set = new HashSet<uint>();
-                    }
 
                     set.UnionWith(pair.Value);
                 }
             }
 
-            if (!anyMissing)
-            {
-                return;
-            }
+            if (!anyMissing) return;
 
             AtgInternals.ResolveFallbacks(textInfoList, AggregatedMissingGlyphs);
             foreach (var entry in AggregatedMissingGlyphs)
             {
-                if (Resources.EntityIdToObject(entry.Key) is not FontAsset fontAsset || entry.Value.Count == 0)
-                {
-                    continue;
-                }
+                if (Resources.EntityIdToObject(entry.Key) is not FontAsset fontAsset ||
+                    entry.Value.Count == 0) continue;
 
                 GlyphBuffer.Clear();
                 GlyphBuffer.AddRange(entry.Value);
@@ -293,24 +268,18 @@ namespace Yaui.Text
             AtgInternals.UpdateFontAssetsInUpdateQueue();
 
             foreach (var text in texts)
-            {
                 if (text.hasMissingGlyphs)
                 {
                     text.ProcessMeshInfos();
                     text.hasMissingGlyphs = false;
                 }
-            }
         }
 
-        void ProcessMeshInfos()
+        private void ProcessMeshInfos()
         {
             foreach (var atlases in textElementIndicesByMesh)
-            {
-                foreach (var indices in atlases)
-                {
-                    indices.Clear();
-                }
-            }
+            foreach (var indices in atlases)
+                indices.Clear();
 
             // Rasterizes newly added glyphs and fills the UVs.
             AtgInternals.ProcessMeshInfos(AtgInternals.TextLib, textInfo, settings, ref textElementIndicesByMesh,
@@ -339,10 +308,7 @@ namespace Yaui.Text
 
                 if (textAsset is not FontAsset fontAsset)
                 {
-                    if (textAsset != null)
-                    {
-                        processedMeshIndex++;
-                    }
+                    if (textAsset != null) processedMeshIndex++;
 
                     continue;
                 }
@@ -357,10 +323,7 @@ namespace Yaui.Text
                     {
                         ref var e = ref elements[elementIndex];
                         var glyph = AtgInternals.GetGlyphInCache(fontAsset, (uint)e.glyphID);
-                        if (glyph != null && (glyph.metrics.width <= 0f || glyph.metrics.height <= 0f))
-                        {
-                            continue;
-                        }
+                        if (glyph != null && (glyph.metrics.width <= 0f || glyph.metrics.height <= 0f)) continue;
 
                         // ATG lays out with Y up from the top-left (flipYAxis), so Y is negated.
                         var top = -e.topLeft.position.y;
@@ -377,7 +340,7 @@ namespace Yaui.Text
                             Color = e.bottomLeft.color,
                             Atlas = atlas,
                             Spread = spread,
-                            Bold = e.bottomLeft.uv2.y != 0,
+                            Bold = e.bottomLeft.uv2.y != 0
                         });
                     }
                 }
@@ -387,13 +350,10 @@ namespace Yaui.Text
         }
 
         /// <summary>The sprites of &lt;sprite&gt; tags: colored quads of the sprite sheet.</summary>
-        static void ConvertSprites(ATGMeshInfo meshInfo, SpriteAsset spriteAsset, List<GlyphQuad> output)
+        private static void ConvertSprites(ATGMeshInfo meshInfo, SpriteAsset spriteAsset, List<GlyphQuad> output)
         {
             var sheet = spriteAsset.spriteSheet;
-            if (sheet == null)
-            {
-                return;
-            }
+            if (sheet == null) return;
 
             var elements = (NativeTextElementInfo*)meshInfo.m_TextElementInfosPtr;
             for (var i = 0; i < meshInfo.m_TextElementCount; i++)
@@ -403,10 +363,7 @@ namespace Yaui.Text
                 var bottom = -e.bottomLeft.position.y;
                 var left = e.bottomLeft.position.x;
                 var right = e.bottomRight.position.x;
-                if (right <= left || bottom <= top)
-                {
-                    continue;
-                }
+                if (right <= left || bottom <= top) continue;
 
                 output.Add(new GlyphQuad
                 {
@@ -416,28 +373,22 @@ namespace Yaui.Text
                     Uv = new float4(e.bottomLeft.uv0.x, e.topRight.uv0.y, e.topRight.uv0.x, e.bottomLeft.uv0.y),
                     Color = e.bottomLeft.color,
                     Atlas = sheet,
-                    IsSprite = true,
+                    IsSprite = true
                 });
             }
         }
 
-        void EnsureTextBuffer(int length)
+        private void EnsureTextBuffer(int length)
         {
-            if (textBuffer != null && textBuffer.Length >= length)
-            {
-                return;
-            }
+            if (textBuffer != null && textBuffer.Length >= length) return;
 
-            if (textBufferHandle.IsAllocated)
-            {
-                textBufferHandle.Free();
-            }
+            if (textBufferHandle.IsAllocated) textBufferHandle.Free();
 
             textBuffer = new char[Math.Max(length, (textBuffer?.Length ?? 16) * 2)];
             textBufferHandle = GCHandle.Alloc(textBuffer, GCHandleType.Pinned);
         }
 
-        static NativeTextGenerationSettings BuildNativeSettings(in TextRequest request)
+        private static NativeTextGenerationSettings BuildNativeSettings(in TextRequest request)
         {
             var s = AtgInternals.GetDefaultSettings();
             s.fontAsset = AtgInternals.GetNativeFontAsset(request.Font);
@@ -451,7 +402,7 @@ namespace Yaui.Text
                 TextAlign.Center => AtgInternals.HorizontalCenter,
                 TextAlign.Right => AtgInternals.HorizontalRight,
                 TextAlign.Justified => AtgInternals.HorizontalJustified,
-                _ => AtgInternals.HorizontalLeft,
+                _ => AtgInternals.HorizontalLeft
             };
 
             // Vertical alignment is applied by YAUI, since the height is only known after the layout.
@@ -466,7 +417,10 @@ namespace Yaui.Text
             return s;
         }
 
-        static int ToFixedPoint(float value) => (int)(value * 64f);
+        private static int ToFixedPoint(float value)
+        {
+            return (int)(value * 64f);
+        }
 
         public void Dispose()
         {
@@ -476,10 +430,7 @@ namespace Yaui.Text
                 textGenerationInfo = IntPtr.Zero;
             }
 
-            if (textBufferHandle.IsAllocated)
-            {
-                textBufferHandle.Free();
-            }
+            if (textBufferHandle.IsAllocated) textBufferHandle.Free();
         }
     }
 }

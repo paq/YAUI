@@ -11,9 +11,12 @@ namespace Yaui.Tests
     /// </summary>
     public static class YogaPerfHelper
     {
-        const int Cells = 1500;
+        private const int Cells = 1500;
 
-        static YogaSize MeasureLabel(float width) => new(System.Math.Min(40f, float.IsNaN(width) ? 40f : width), 20f);
+        private static YogaSize MeasureLabel(float width)
+        {
+            return new YogaSize(System.Math.Min(40f, float.IsNaN(width) ? 40f : width), 20f);
+        }
 
         public static string Run(string mode)
         {
@@ -29,6 +32,7 @@ namespace Yaui.Tests
                 root.Width = YogaValue.Point(1080);
                 root.Height = YogaValue.Point(1920);
                 var all = new List<YogaNode> { root };
+
                 YogaNode Cell()
                 {
                     var cell = YogaNodeStore.Create();
@@ -74,7 +78,12 @@ namespace Yaui.Tests
                     spawn += watch.Elapsed.TotalMilliseconds;
                     measures += measureCount;
                     fresh = 0;
-                    foreach (var node in all) { if (!node.Owner.IsNull || node == root) { if (node.HasNewLayout) fresh++; node.HasNewLayout = false; } }
+                    foreach (var node in all)
+                        if (!node.Owner.IsNull || node == root)
+                        {
+                            if (node.HasNewLayout) fresh++;
+                            node.HasNewLayout = false;
+                        }
                 }
 
                 foreach (var node in all) YogaNodeStore.Destroy(node);
@@ -86,6 +95,7 @@ namespace Yaui.Tests
                 root.FlexWrap = FlexWrap.Wrap;
                 root.Width = Ref.YogaValue.Point(1080);
                 root.Height = Ref.YogaValue.Point(1920);
+
                 Ref.YogaNode Cell()
                 {
                     var cell = new Ref.YogaNode();
@@ -129,12 +139,20 @@ namespace Yaui.Tests
                     spawn += watch.Elapsed.TotalMilliseconds;
                     measures += measureCount;
                     fresh = 0;
-                    void Walk(Ref.YogaNode n) { if (n.HasNewLayout) fresh++; n.HasNewLayout = false; for (var c = 0; c < n.ChildCount; c++) Walk(n.GetChild(c)); }
+
+                    void Walk(Ref.YogaNode n)
+                    {
+                        if (n.HasNewLayout) fresh++;
+                        n.HasNewLayout = false;
+                        for (var c = 0; c < n.ChildCount; c++) Walk(n.GetChild(c));
+                    }
+
                     Walk(root);
                 }
             }
 
-            return $"full relayout {full:F2} ms, spawn relayout {spawn / 10:F2} ms ({measures / 10:F0} measures, {fresh} new layouts)";
+            return
+                $"full relayout {full:F2} ms, spawn relayout {spawn / 10:F2} ms ({measures / 10:F0} measures, {fresh} new layouts)";
         }
     }
 }

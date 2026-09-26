@@ -14,7 +14,7 @@ namespace Yaui
         Elastic,
 
         /// <summary>The content stops at its edges.</summary>
-        Clamped,
+        Clamped
     }
 
     /// <summary>
@@ -36,41 +36,42 @@ namespace Yaui
         {
         }
 
-        [SerializeField] YauiElement content;
+        [SerializeField] private YauiElement content;
 
         /// <summary>The element that shows the content; this GameObject's element when null.</summary>
-        [SerializeField] YauiElement viewport;
+        [SerializeField] private YauiElement viewport;
 
-        [SerializeField] bool horizontal = true;
-        [SerializeField] bool vertical = true;
-        [SerializeField] ScrollMovement movementType = ScrollMovement.Elastic;
+        [SerializeField] private bool horizontal = true;
+        [SerializeField] private bool vertical = true;
+        [SerializeField] private ScrollMovement movementType = ScrollMovement.Elastic;
 
         /// <summary>Elastic: seconds (roughly) the content takes to spring back.</summary>
-        [SerializeField] float elasticity = 0.1f;
+        [SerializeField] private float elasticity = 0.1f;
 
-        [SerializeField] bool inertia = true;
+        [SerializeField] private bool inertia = true;
 
         /// <summary>The fraction of the velocity left after a second.</summary>
-        [SerializeField] [Range(0f, 1f)] float decelerationRate = 0.135f;
+        [SerializeField] [Range(0f, 1f)] private float decelerationRate = 0.135f;
 
         /// <summary>Canvas units per step of the scroll wheel.</summary>
-        [SerializeField] float scrollSensitivity = 20f;
+        [SerializeField] private float scrollSensitivity = 20f;
 
         /// <summary>Driven by the scroll view: its size is the visible part, its value the normalized position.</summary>
-        [SerializeField] YauiScrollbar horizontalScrollbar;
+        [SerializeField] private YauiScrollbar horizontalScrollbar;
 
         /// <summary>Like <see cref="horizontalScrollbar"/>; with the direction TopToBottom, since 0 is the top.</summary>
-        [SerializeField] YauiScrollbar verticalScrollbar;
-        [SerializeField] ScrollViewEvent onValueChanged = new();
+        [SerializeField] private YauiScrollbar verticalScrollbar;
 
-        [NonSerialized] Vector2 position;
-        [NonSerialized] Vector2 velocity;
-        [NonSerialized] bool dragging;
-        [NonSerialized] Vector2 dragStartPointer;
-        [NonSerialized] Vector2 dragStartPosition;
-        [NonSerialized] Vector2 previousPosition = new(float.NaN, float.NaN);
-        [NonSerialized] Vector2 previousRange = new(float.NaN, float.NaN);
-        [NonSerialized] bool updatingScrollbars;
+        [SerializeField] private ScrollViewEvent onValueChanged = new();
+
+        [NonSerialized] private Vector2 position;
+        [NonSerialized] private Vector2 velocity;
+        [NonSerialized] private bool dragging;
+        [NonSerialized] private Vector2 dragStartPointer;
+        [NonSerialized] private Vector2 dragStartPosition;
+        [NonSerialized] private Vector2 previousPosition = new(float.NaN, float.NaN);
+        [NonSerialized] private Vector2 previousRange = new(float.NaN, float.NaN);
+        [NonSerialized] private bool updatingScrollbars;
 
         public YauiElement Content
         {
@@ -167,10 +168,7 @@ namespace Yaui
         {
             get
             {
-                if (content == null)
-                {
-                    return Vector2.zero;
-                }
+                if (content == null) return Vector2.zero;
 
                 var view = Viewport.LayoutRect.size;
                 var size = content.LayoutRect.size;
@@ -195,24 +193,27 @@ namespace Yaui
             }
         }
 
-        public void StopMovement() => velocity = Vector2.zero;
+        public void StopMovement()
+        {
+            velocity = Vector2.zero;
+        }
 
         /// <summary>Whether the content can move along an axis (0: horizontal, 1: vertical).</summary>
-        bool CanScroll(int axis) => (axis == 0 ? horizontal : vertical) && ScrollRange[axis] > 0f;
+        private bool CanScroll(int axis)
+        {
+            return (axis == 0 ? horizontal : vertical) && ScrollRange[axis] > 0f;
+        }
 
         /// <summary>
         /// Sends an event to the handler above this scroll view. A drag handed over keeps going there: the input
         /// module sends the rest of the drag to <see cref="PointerEventData.pointerDrag"/>.
         /// </summary>
-        bool PassToParent<T>(PointerEventData eventData, ExecuteEvents.EventFunction<T> function)
+        private bool PassToParent<T>(PointerEventData eventData, ExecuteEvents.EventFunction<T> function)
             where T : IEventSystemHandler
         {
             var parent = transform.parent;
             var handler = parent != null ? ExecuteEvents.GetEventHandler<T>(parent.gameObject) : null;
-            if (handler == null)
-            {
-                return false;
-            }
+            if (handler == null) return false;
 
             if (typeof(T) == typeof(IBeginDragHandler))
             {
@@ -227,10 +228,7 @@ namespace Yaui
         /// <summary>Scrolls as little as needed to show a descendant of the content.</summary>
         public void ScrollIntoView(YauiElement target)
         {
-            if (content == null || target == null)
-            {
-                return;
-            }
+            if (content == null || target == null) return;
 
             // The target's box in the content.
             var offset = Vector2.zero;
@@ -241,25 +239,16 @@ namespace Yaui
                 current = Track.ParentOf(current);
             }
 
-            if (current != content)
-            {
-                return;
-            }
+            if (current != content) return;
 
             var size = target.LayoutRect.size;
             var view = Viewport.LayoutRect.size;
             var scrolled = position;
             for (var axis = 0; axis < 2; axis++)
-            {
                 if (offset[axis] < scrolled[axis])
-                {
                     scrolled[axis] = offset[axis];
-                }
                 else if (offset[axis] + size[axis] > scrolled[axis] + view[axis])
-                {
                     scrolled[axis] = offset[axis] + size[axis] - view[axis];
-                }
-            }
 
             velocity = Vector2.zero;
             position = scrolled - Overscroll(scrolled);
@@ -268,15 +257,9 @@ namespace Yaui
 
         protected virtual void OnEnable()
         {
-            if (horizontalScrollbar != null)
-            {
-                horizontalScrollbar.OnValueChanged.AddListener(OnHorizontalScrollbar);
-            }
+            if (horizontalScrollbar != null) horizontalScrollbar.OnValueChanged.AddListener(OnHorizontalScrollbar);
 
-            if (verticalScrollbar != null)
-            {
-                verticalScrollbar.OnValueChanged.AddListener(OnVerticalScrollbar);
-            }
+            if (verticalScrollbar != null) verticalScrollbar.OnValueChanged.AddListener(OnVerticalScrollbar);
 
             previousPosition = new Vector2(float.NaN, float.NaN);
             previousRange = new Vector2(float.NaN, float.NaN);
@@ -284,37 +267,25 @@ namespace Yaui
 
         protected virtual void OnDisable()
         {
-            if (horizontalScrollbar != null)
-            {
-                horizontalScrollbar.OnValueChanged.RemoveListener(OnHorizontalScrollbar);
-            }
+            if (horizontalScrollbar != null) horizontalScrollbar.OnValueChanged.RemoveListener(OnHorizontalScrollbar);
 
-            if (verticalScrollbar != null)
-            {
-                verticalScrollbar.OnValueChanged.RemoveListener(OnVerticalScrollbar);
-            }
+            if (verticalScrollbar != null) verticalScrollbar.OnValueChanged.RemoveListener(OnVerticalScrollbar);
 
             dragging = false;
             velocity = Vector2.zero;
         }
 
-        void SetScrollbar(ref YauiScrollbar field, YauiScrollbar value, UnityAction<float> listener)
+        private void SetScrollbar(ref YauiScrollbar field, YauiScrollbar value, UnityAction<float> listener)
         {
-            if (field != null && isActiveAndEnabled)
-            {
-                field.OnValueChanged.RemoveListener(listener);
-            }
+            if (field != null && isActiveAndEnabled) field.OnValueChanged.RemoveListener(listener);
 
             field = value;
-            if (field != null && isActiveAndEnabled)
-            {
-                field.OnValueChanged.AddListener(listener);
-            }
+            if (field != null && isActiveAndEnabled) field.OnValueChanged.AddListener(listener);
 
             previousRange = new Vector2(float.NaN, float.NaN);
         }
 
-        void OnHorizontalScrollbar(float value)
+        private void OnHorizontalScrollbar(float value)
         {
             if (!updatingScrollbars)
             {
@@ -324,7 +295,7 @@ namespace Yaui
             }
         }
 
-        void OnVerticalScrollbar(float value)
+        private void OnVerticalScrollbar(float value)
         {
             if (!updatingScrollbars)
             {
@@ -338,31 +309,19 @@ namespace Yaui
 
         public virtual void OnInitializePotentialDrag(PointerEventData eventData)
         {
-            if (eventData.button == PointerEventData.InputButton.Left)
-            {
-                velocity = Vector2.zero;
-            }
+            if (eventData.button == PointerEventData.InputButton.Left) velocity = Vector2.zero;
         }
 
         public virtual void OnBeginDrag(PointerEventData eventData)
         {
-            if (eventData.button != PointerEventData.InputButton.Left || !isActiveAndEnabled)
-            {
-                return;
-            }
+            if (eventData.button != PointerEventData.InputButton.Left || !isActiveAndEnabled) return;
 
             // Nested scroll views: a drag along an axis this one cannot scroll goes to the one above.
             var moved = eventData.position - eventData.pressPosition;
             var axis = Mathf.Abs(moved.x) >= Mathf.Abs(moved.y) ? 0 : 1;
-            if (!CanScroll(axis) && PassToParent(eventData, ExecuteEvents.beginDragHandler))
-            {
-                return;
-            }
+            if (!CanScroll(axis) && PassToParent(eventData, ExecuteEvents.beginDragHandler)) return;
 
-            if (!Viewport.ScreenToLocal(eventData.position, out dragStartPointer))
-            {
-                return;
-            }
+            if (!Viewport.ScreenToLocal(eventData.position, out dragStartPointer)) return;
 
             dragStartPosition = position;
             dragging = true;
@@ -372,9 +331,7 @@ namespace Yaui
         {
             if (!dragging || eventData.button != PointerEventData.InputButton.Left ||
                 !Viewport.ScreenToLocal(eventData.position, out var pointer))
-            {
                 return;
-            }
 
             var target = dragStartPosition - (pointer - dragStartPointer);
             if (movementType == ScrollMovement.Elastic)
@@ -391,43 +348,25 @@ namespace Yaui
 
         public virtual void OnEndDrag(PointerEventData eventData)
         {
-            if (eventData.button == PointerEventData.InputButton.Left)
-            {
-                dragging = false;
-            }
+            if (eventData.button == PointerEventData.InputButton.Left) dragging = false;
         }
 
         public virtual void OnScroll(PointerEventData eventData)
         {
-            if (!isActiveAndEnabled)
-            {
-                return;
-            }
+            if (!isActiveAndEnabled) return;
 
             // Content that fits leaves the wheel to the scroll view above.
-            if (!CanScroll(0) && !CanScroll(1) && PassToParent(eventData, ExecuteEvents.scrollHandler))
-            {
-                return;
-            }
+            if (!CanScroll(0) && !CanScroll(1) && PassToParent(eventData, ExecuteEvents.scrollHandler)) return;
 
             // The wheel scrolls vertically, or horizontally if the content only scrolls horizontally.
             var delta = eventData.scrollDelta;
             delta.y = -delta.y;
-            if (vertical && !horizontal && Mathf.Abs(delta.x) > Mathf.Abs(delta.y))
-            {
-                delta.y = delta.x;
-            }
+            if (vertical && !horizontal && Mathf.Abs(delta.x) > Mathf.Abs(delta.y)) delta.y = delta.x;
 
-            if (horizontal && !vertical && Mathf.Abs(delta.y) > Mathf.Abs(delta.x))
-            {
-                delta.x = delta.y;
-            }
+            if (horizontal && !vertical && Mathf.Abs(delta.y) > Mathf.Abs(delta.x)) delta.x = delta.y;
 
             var target = position + delta * scrollSensitivity;
-            if (movementType == ScrollMovement.Clamped)
-            {
-                target -= Overscroll(target);
-            }
+            if (movementType == ScrollMovement.Clamped) target -= Overscroll(target);
 
             velocity = Vector2.zero;
             SetPosition(target);
@@ -435,40 +374,36 @@ namespace Yaui
 
         #endregion
 
-        void SetPosition(Vector2 target)
+        private void SetPosition(Vector2 target)
         {
-            if (!horizontal)
-            {
-                target.x = position.x;
-            }
+            if (!horizontal) target.x = position.x;
 
-            if (!vertical)
-            {
-                target.y = position.y;
-            }
+            if (!vertical) target.y = position.y;
 
             position = target;
             Apply();
         }
 
         /// <summary>How far a position is past the ends of the range (negative before the start).</summary>
-        Vector2 Overscroll(Vector2 at)
+        private Vector2 Overscroll(Vector2 at)
         {
             var range = ScrollRange;
             return new Vector2(Over(at.x, range.x), Over(at.y, range.y));
 
-            static float Over(float value, float max) => value < 0f ? value : value > max ? value - max : 0f;
+            static float Over(float value, float max)
+            {
+                return value < 0f ? value : value > max ? value - max : 0f;
+            }
         }
 
-        static float RubberDelta(float over, float viewSize) =>
-            (1f - 1f / (Mathf.Abs(over) * 0.55f / Mathf.Max(viewSize, 1f) + 1f)) * viewSize * Mathf.Sign(over);
+        private static float RubberDelta(float over, float viewSize)
+        {
+            return (1f - 1f / (Mathf.Abs(over) * 0.55f / Mathf.Max(viewSize, 1f) + 1f)) * viewSize * Mathf.Sign(over);
+        }
 
         protected virtual void LateUpdate()
         {
-            if (content == null)
-            {
-                return;
-            }
+            if (content == null) return;
 
             var dt = Time.unscaledDeltaTime;
             if (!dragging && dt > 0f)
@@ -476,27 +411,20 @@ namespace Yaui
                 var over = Overscroll(position);
                 var target = position;
                 for (var axis = 0; axis < 2; axis++)
-                {
                     if (movementType == ScrollMovement.Elastic && over[axis] != 0f)
                     {
                         // Springs back toward the edge.
                         var v = velocity[axis];
                         target[axis] = Mathf.SmoothDamp(position[axis], position[axis] - over[axis], ref v,
                             Mathf.Max(elasticity, 1e-3f), Mathf.Infinity, dt);
-                        if (Mathf.Abs(v) < 1f)
-                        {
-                            v = 0f;
-                        }
+                        if (Mathf.Abs(v) < 1f) v = 0f;
 
                         velocity[axis] = v;
                     }
                     else if (inertia && velocity[axis] != 0f)
                     {
                         velocity[axis] *= Mathf.Pow(decelerationRate, dt);
-                        if (Mathf.Abs(velocity[axis]) < 1f)
-                        {
-                            velocity[axis] = 0f;
-                        }
+                        if (Mathf.Abs(velocity[axis]) < 1f) velocity[axis] = 0f;
 
                         target[axis] += velocity[axis] * dt;
                     }
@@ -504,28 +432,18 @@ namespace Yaui
                     {
                         velocity[axis] = 0f;
                     }
-                }
 
                 if (movementType == ScrollMovement.Clamped)
                 {
                     var clampedOver = Overscroll(target);
-                    if (clampedOver.x != 0f)
-                    {
-                        velocity.x = 0f;
-                    }
+                    if (clampedOver.x != 0f) velocity.x = 0f;
 
-                    if (clampedOver.y != 0f)
-                    {
-                        velocity.y = 0f;
-                    }
+                    if (clampedOver.y != 0f) velocity.y = 0f;
 
                     target -= clampedOver;
                 }
 
-                if (target != position)
-                {
-                    SetPosition(target);
-                }
+                if (target != position) SetPosition(target);
             }
 
             if (dragging && inertia && dt > 0f)
@@ -538,33 +456,21 @@ namespace Yaui
             previousPositionForVelocity = position;
 
             // The range changes when the content or the viewport is laid out again.
-            if (ScrollRange != previousRange)
-            {
-                Apply();
-            }
+            if (ScrollRange != previousRange) Apply();
         }
 
-        [NonSerialized] Vector2 previousPositionForVelocity;
+        [NonSerialized] private Vector2 previousPositionForVelocity;
 
         /// <summary>Moves the content and updates the scrollbars and the listeners.</summary>
-        void Apply()
+        private void Apply()
         {
-            if (content == null)
-            {
-                return;
-            }
+            if (content == null) return;
 
             var range = ScrollRange;
-            if (movementType == ScrollMovement.Clamped)
-            {
-                position -= Overscroll(position);
-            }
+            if (movementType == ScrollMovement.Clamped) position -= Overscroll(position);
 
             var translate = -position;
-            if (content.Translate != translate)
-            {
-                content.Translate = translate;
-            }
+            if (content.Translate != translate) content.Translate = translate;
 
             var normalized = NormalizedPosition;
             updatingScrollbars = true;
@@ -574,13 +480,17 @@ namespace Yaui
                 var size = content.LayoutRect.size;
                 if (horizontalScrollbar != null)
                 {
-                    horizontalScrollbar.Size = size.x > 0f ? Mathf.Clamp01((view.x - Mathf.Abs(Overscroll(position).x)) / size.x) : 1f;
+                    horizontalScrollbar.Size = size.x > 0f
+                        ? Mathf.Clamp01((view.x - Mathf.Abs(Overscroll(position).x)) / size.x)
+                        : 1f;
                     horizontalScrollbar.Value = normalized.x;
                 }
 
                 if (verticalScrollbar != null)
                 {
-                    verticalScrollbar.Size = size.y > 0f ? Mathf.Clamp01((view.y - Mathf.Abs(Overscroll(position).y)) / size.y) : 1f;
+                    verticalScrollbar.Size = size.y > 0f
+                        ? Mathf.Clamp01((view.y - Mathf.Abs(Overscroll(position).y)) / size.y)
+                        : 1f;
                     verticalScrollbar.Value = normalized.y;
                 }
             }

@@ -33,16 +33,21 @@ namespace Yaui.Rendering
         /// Draws only a sector of the shape (radial fill of images). The border color holds, as halves, the center
         /// (0..1 of the rect, Y down), the start angle and the signed sweep in radians (positive: clockwise).
         /// </summary>
-        RadialFill = 1 << 6,
+        RadialFill = 1 << 6
     }
 
     internal static class PrimitiveTexture
     {
         /// <summary>The flags of a primitive sampling the texture of <paramref name="textureId"/> (TextureRegistry).</summary>
-        public static PrimitiveFlags With(PrimitiveFlags flags, int textureId) =>
-            flags | (PrimitiveFlags)((uint)textureId << 16);
+        public static PrimitiveFlags With(PrimitiveFlags flags, int textureId)
+        {
+            return flags | (PrimitiveFlags)((uint)textureId << 16);
+        }
 
-        public static int IdOf(PrimitiveFlags flags) => (int)((uint)flags >> 16);
+        public static int IdOf(PrimitiveFlags flags)
+        {
+            return (int)((uint)flags >> 16);
+        }
     }
 
     /// <summary>
@@ -112,8 +117,10 @@ namespace Yaui.Rendering
 
         public uint Clip => OpacityAndClip >> 16;
 
-        public static uint PackOpacityAndClip(float opacity, int clip) =>
-            math.f32tof16(opacity) | ((uint)clip << 16);
+        public static uint PackOpacityAndClip(float opacity, int clip)
+        {
+            return math.f32tof16(opacity) | ((uint)clip << 16);
+        }
     }
 
     /// <summary>A clip in canvas space. 64 bytes. Must match <c>ClipData</c> in Uber.shader.</summary>
@@ -139,11 +146,17 @@ namespace Yaui.Rendering
 
     internal static class GpuPacking
     {
-        public static uint Half2(float x, float y) => math.f32tof16(x) | (math.f32tof16(y) << 16);
+        public static uint Half2(float x, float y)
+        {
+            return math.f32tof16(x) | (math.f32tof16(y) << 16);
+        }
 
-        public static uint2 Half4(float4 v) => new(Half2(v.x, v.y), Half2(v.z, v.w));
+        public static uint2 Half4(float4 v)
+        {
+            return new uint2(Half2(v.x, v.y), Half2(v.z, v.w));
+        }
 
-        static bool? linear;
+        private static bool? linear;
 
         /// <summary>Converts to linear space when the project uses it, like vertex colors of UI.</summary>
         public static uint2 Color(Color color)
@@ -153,9 +166,15 @@ namespace Yaui.Rendering
             return Half4(linear.Value ? (Vector4)color.linear : (Vector4)color);
         }
 
-        static uint Unorm16(float v) => (uint)math.round(math.saturate(v) * 65535f);
+        private static uint Unorm16(float v)
+        {
+            return (uint)math.round(math.saturate(v) * 65535f);
+        }
 
-        static uint Unorm8(float v) => (uint)math.round(math.saturate(v) * 255f);
+        private static uint Unorm8(float v)
+        {
+            return (uint)math.round(math.saturate(v) * 255f);
+        }
 
         /// <summary>A color as RGBA8, converted to linear space like <see cref="Color(UnityEngine.Color)"/>.</summary>
         public static uint Rgba8(Color color)
@@ -167,7 +186,9 @@ namespace Yaui.Rendering
 
         public const uint White8 = 0xffffffffu;
 
-        public static uint2 Unorm16x4(float4 v) =>
-            new(Unorm16(v.x) | (Unorm16(v.y) << 16), Unorm16(v.z) | (Unorm16(v.w) << 16));
+        public static uint2 Unorm16x4(float4 v)
+        {
+            return new uint2(Unorm16(v.x) | (Unorm16(v.y) << 16), Unorm16(v.z) | (Unorm16(v.w) << 16));
+        }
     }
 }

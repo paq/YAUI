@@ -12,23 +12,19 @@ namespace Yaui.Tests
     /// </summary>
     public class YauiTests
     {
-        readonly List<GameObject> created = new();
+        private readonly List<GameObject> created = new();
 
         [TearDown]
         public void TearDown()
         {
             foreach (var go in created)
-            {
                 if (go != null)
-                {
                     Object.DestroyImmediate(go);
-                }
-            }
 
             created.Clear();
         }
 
-        YauiPanel CreatePanel(float width = 1000f, float height = 1000f)
+        private YauiPanel CreatePanel(float width = 1000f, float height = 1000f)
         {
             var go = new GameObject("TestPanel");
             created.Add(go);
@@ -38,14 +34,14 @@ namespace Yaui.Tests
             return panel;
         }
 
-        static T Create<T>(Component parent, string name = null) where T : YauiElement
+        private static T Create<T>(Component parent, string name = null) where T : YauiElement
         {
             var go = new GameObject(name ?? typeof(T).Name);
             go.transform.SetParent(parent.transform, false);
             return go.AddComponent<T>();
         }
 
-        static YauiElement Box(Component parent, float width, float height, Color color = default)
+        private static YauiElement Box(Component parent, float width, float height, Color color = default)
         {
             var element = Create<YauiElement>(parent);
             var layout = LayoutStyle.Default;
@@ -58,8 +54,10 @@ namespace Yaui.Tests
             return element;
         }
 
-        static YauiElement HitTest(YauiPanel panel, float x, float y) =>
-            panel.CurrentState.HitTestCanvas(new float2(x, y));
+        private static YauiElement HitTest(YauiPanel panel, float x, float y)
+        {
+            return panel.CurrentState.HitTestCanvas(new float2(x, y));
+        }
 
         [Test]
         public void RowLaysOutWithPaddingGapAndGrow()
@@ -127,7 +125,7 @@ namespace Yaui.Tests
         [Test]
         public void FallbackTextIsMeasured()
         {
-            Yaui.Text.AtgText.ForceFallback = true;
+            Text.AtgText.ForceFallback = true;
             try
             {
                 var panel = CreatePanel();
@@ -144,7 +142,7 @@ namespace Yaui.Tests
             }
             finally
             {
-                Yaui.Text.AtgText.ForceFallback = false;
+                Text.AtgText.ForceFallback = false;
             }
         }
 
@@ -300,7 +298,7 @@ namespace Yaui.Tests
             CollectionAssert.AreEqual(new[]
             {
                 Core.SegmentKind.Draw, Core.SegmentKind.MaskPush, Core.SegmentKind.MaskPush, Core.SegmentKind.Draw,
-                Core.SegmentKind.MaskPop, Core.SegmentKind.MaskPop, Core.SegmentKind.Draw,
+                Core.SegmentKind.MaskPop, Core.SegmentKind.MaskPop, Core.SegmentKind.Draw
             }, kinds);
             CollectionAssert.AreEqual(new[] { 0, 1, 2, 2, 2, 1, 0 }, depths);
 
@@ -309,7 +307,7 @@ namespace Yaui.Tests
             Assert.AreSame(after, HitTest(panel, 25f, 225f));
         }
 
-        static Sprite MakeSprite(int size, bool readable)
+        private static Sprite MakeSprite(int size, bool readable)
         {
             var texture = new Texture2D(size, size, TextureFormat.RGBA32, false);
             texture.Apply(false, !readable);
@@ -322,15 +320,9 @@ namespace Yaui.Tests
             var panel = CreatePanel();
             var root = panel.GetComponent<YauiElement>();
             var sprites = new List<Sprite>();
-            for (var i = 0; i < 20; i++)
-            {
-                sprites.Add(MakeSprite(32, false));
-            }
+            for (var i = 0; i < 20; i++) sprites.Add(MakeSprite(32, false));
 
-            for (var i = 0; i < 12; i++)
-            {
-                sprites.Add(MakeSprite(128, false));
-            }
+            for (var i = 0; i < 12; i++) sprites.Add(MakeSprite(128, false));
 
             foreach (var sprite in sprites)
             {
@@ -349,16 +341,13 @@ namespace Yaui.Tests
             Assert.AreEqual(2, segments.Count);
             Assert.AreEqual(8, segments[0].TextureCount);
             Assert.AreEqual(5, segments[1].TextureCount);
-            foreach (var sprite in sprites)
-            {
-                Object.DestroyImmediate(sprite.texture);
-            }
+            foreach (var sprite in sprites) Object.DestroyImmediate(sprite.texture);
         }
 
         [Test]
         public void GpuStoreReusesFreedSlots()
         {
-            using var store = new GpuStore<int>(4, reserved: 1);
+            using var store = new GpuStore<int>(4, 1);
             var a = store.Allocate();
             var b = store.Allocate();
             Assert.AreEqual(1, a);
@@ -376,30 +365,27 @@ namespace Yaui.Tests
         [Test]
         public void PreparingTheSameTextAgainKeepsTheUvs()
         {
-            if (!Yaui.Text.AtgText.IsSupported)
-            {
-                Assert.Ignore("The ATG internals do not match this Unity version.");
-            }
+            if (!Text.AtgText.IsSupported) Assert.Ignore("The ATG internals do not match this Unity version.");
 
 #pragma warning disable 618
             var font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
 #pragma warning restore 618
-            using var atg = new Yaui.Text.AtgText();
-            var request = new Yaui.Text.TextRequest
+            using var atg = new Text.AtgText();
+            var request = new Text.TextRequest
             {
-                Font = Yaui.Text.AtgText.GetFontAsset(font),
+                Font = Text.AtgText.GetFontAsset(font),
                 FontSize = 32f,
                 Color = Color.white,
-                WordWrap = true,
+                WordWrap = true
             };
 
             // Preparing the same text again (OnValidate after an undo) makes the native generator return its cached
             // result, whose UVs are already in the atlas.
-            var first = new List<Yaui.Text.GlyphQuad>();
-            var again = new List<Yaui.Text.GlyphQuad>();
+            var first = new List<Text.GlyphQuad>();
+            var again = new List<Text.GlyphQuad>();
             atg.Prepare(System.MemoryExtensions.AsSpan("Hello, YAUI"), request);
             atg.Generate(200f);
-            Yaui.Text.AtgText.ResolveMissingGlyphs(new List<Yaui.Text.AtgText> { atg });
+            Text.AtgText.ResolveMissingGlyphs(new List<Text.AtgText> { atg });
             atg.Convert(first);
             for (var i = 0; i < 3; i++)
             {
@@ -417,17 +403,14 @@ namespace Yaui.Tests
             }
         }
 
-        static List<PrimitiveData> DrawnGlyphs(YauiText text)
+        private static List<PrimitiveData> DrawnGlyphs(YauiText text)
         {
             var result = new List<PrimitiveData>();
             var (start, capacity) = text.GlyphRange;
             for (var i = 0; i < capacity; i++)
             {
-                var p = Yaui.Core.YauiSystem.Primitives[start + i];
-                if (p.Rect.z > 0f)
-                {
-                    result.Add(p);
-                }
+                var p = Core.YauiSystem.Primitives[start + i];
+                if (p.Rect.z > 0f) result.Add(p);
             }
 
             return result;
@@ -457,9 +440,7 @@ namespace Yaui.Tests
             var elided = DrawnGlyphs(text);
             Assert.Less(elided.Count, overflowing.Count);
             foreach (var glyph in elided)
-            {
-                Assert.LessOrEqual(glyph.Rect.x + glyph.Rect.z, 200f + Yaui.Text.AtgText.VertexPadding + 0.5f);
-            }
+                Assert.LessOrEqual(glyph.Rect.x + glyph.Rect.z, 200f + Text.AtgText.VertexPadding + 0.5f);
 
             // The layout still sees the size of the whole text.
             var height = text.LayoutRect.height;
@@ -499,7 +480,7 @@ namespace Yaui.Tests
             }
         }
 
-        static Texture2D TestTexture()
+        private static Texture2D TestTexture()
         {
             var texture = new Texture2D(8, 8);
             texture.hideFlags = HideFlags.DontSave;
@@ -525,14 +506,14 @@ namespace Yaui.Tests
                 image.FillAmount = 0.25f;
                 YauiPanel.ForceUpdate();
 
-                var p = Yaui.Core.YauiSystem.Primitives[image.PrimitiveRange.Start];
+                var p = Core.YauiSystem.Primitives[image.PrimitiveRange.Start];
                 Assert.AreEqual(75f, p.Rect.x, 1e-3f);
                 Assert.AreEqual(25f, p.Rect.z, 1e-3f);
                 Assert.AreEqual(50f, p.Rect.w, 1e-3f);
 
                 image.FillMethod = FillMethod.Radial360;
                 YauiPanel.ForceUpdate();
-                p = Yaui.Core.YauiSystem.Primitives[image.PrimitiveRange.Start];
+                p = Core.YauiSystem.Primitives[image.PrimitiveRange.Start];
                 Assert.IsTrue((p.Flags & PrimitiveFlags.RadialFill) != 0);
                 Assert.AreEqual(100f, p.Rect.z, 1e-3f, "A radial fill covers the whole rect.");
             }
@@ -557,9 +538,9 @@ namespace Yaui.Tests
                 image.Texture = texture;
                 YauiPanel.ForceUpdate();
 
-                var p = Yaui.Core.YauiSystem.Primitives[image.PrimitiveSlot];
-                Assert.AreEqual(new Unity.Mathematics.float4(0f, 0f, 40f, 30f), p.Rect);
-                Assert.AreSame(texture, Yaui.Core.YauiSystem.Textures.Get(PrimitiveTexture.IdOf(p.Flags)));
+                var p = Core.YauiSystem.Primitives[image.PrimitiveSlot];
+                Assert.AreEqual(new float4(0f, 0f, 40f, 30f), p.Rect);
+                Assert.AreSame(texture, Core.YauiSystem.Textures.Get(PrimitiveTexture.IdOf(p.Flags)));
                 Assert.AreSame(image, HitTest(panel, 20f, 15f), "Hit without a visible box.");
 
                 image.Texture = null;

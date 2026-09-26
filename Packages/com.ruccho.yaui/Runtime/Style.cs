@@ -12,7 +12,7 @@ namespace Yaui
         Point,
 
         /// <summary>Percent of the parent's size.</summary>
-        Percent,
+        Percent
     }
 
     [Serializable]
@@ -29,24 +29,45 @@ namespace Yaui
 
         public static Length Auto => new(0f, LengthUnit.Auto);
 
-        public static Length Points(float value) => new(value, LengthUnit.Point);
-
-        public static Length Percent(float value) => new(value, LengthUnit.Percent);
-
-        public static implicit operator Length(float points) => Points(points);
-
-        public bool Equals(Length other) => Value.Equals(other.Value) && Unit == other.Unit;
-
-        public override bool Equals(object obj) => obj is Length other && Equals(other);
-
-        public override int GetHashCode() => HashCode.Combine(Value, (int)Unit);
-
-        public override string ToString() => Unit switch
+        public static Length Points(float value)
         {
-            LengthUnit.Auto => "auto",
-            LengthUnit.Percent => $"{Value}%",
-            _ => Value.ToString(),
-        };
+            return new Length(value, LengthUnit.Point);
+        }
+
+        public static Length Percent(float value)
+        {
+            return new Length(value, LengthUnit.Percent);
+        }
+
+        public static implicit operator Length(float points)
+        {
+            return Points(points);
+        }
+
+        public bool Equals(Length other)
+        {
+            return Value.Equals(other.Value) && Unit == other.Unit;
+        }
+
+        public override bool Equals(object obj)
+        {
+            return obj is Length other && Equals(other);
+        }
+
+        public override int GetHashCode()
+        {
+            return HashCode.Combine(Value, (int)Unit);
+        }
+
+        public override string ToString()
+        {
+            return Unit switch
+            {
+                LengthUnit.Auto => "auto",
+                LengthUnit.Percent => $"{Value}%",
+                _ => Value.ToString()
+            };
+        }
     }
 
     [Serializable]
@@ -57,7 +78,10 @@ namespace Yaui
         public Length Right;
         public Length Bottom;
 
-        public Edges(Length all) => Left = Top = Right = Bottom = all;
+        public Edges(Length all)
+        {
+            Left = Top = Right = Bottom = all;
+        }
 
         public Edges(Length horizontal, Length vertical)
         {
@@ -77,13 +101,21 @@ namespace Yaui
 
         public static Edges Auto => new(Length.Auto);
 
-        public bool Equals(Edges other) =>
-            Left.Equals(other.Left) && Top.Equals(other.Top) && Right.Equals(other.Right) &&
-            Bottom.Equals(other.Bottom);
+        public bool Equals(Edges other)
+        {
+            return Left.Equals(other.Left) && Top.Equals(other.Top) && Right.Equals(other.Right) &&
+                   Bottom.Equals(other.Bottom);
+        }
 
-        public override bool Equals(object obj) => obj is Edges other && Equals(other);
+        public override bool Equals(object obj)
+        {
+            return obj is Edges other && Equals(other);
+        }
 
-        public override int GetHashCode() => HashCode.Combine(Left, Top, Right, Bottom);
+        public override int GetHashCode()
+        {
+            return HashCode.Combine(Left, Top, Right, Bottom);
+        }
     }
 
     public enum PositionType
@@ -92,7 +124,7 @@ namespace Yaui
         Relative,
 
         /// <summary>Placed by the insets relative to the parent, outside of the flex layout.</summary>
-        Absolute,
+        Absolute
     }
 
     /// <summary>Properties that affect the layout. Changing them re-runs the layout of the panel.</summary>
@@ -148,21 +180,31 @@ namespace Yaui
             MaxHeight = Length.Auto,
             Margin = Edges.Zero,
             Padding = Edges.Zero,
-            Gap = Vector2.zero,
+            Gap = Vector2.zero
         };
 
-        public bool Equals(LayoutStyle other) =>
-            Position == other.Position && Inset.Equals(other.Inset) && Direction == other.Direction &&
-            Wrap == other.Wrap && JustifyContent == other.JustifyContent && AlignItems == other.AlignItems &&
-            AlignSelf == other.AlignSelf && AlignContent == other.AlignContent && Grow.Equals(other.Grow) &&
-            Shrink.Equals(other.Shrink) && Basis.Equals(other.Basis) && Width.Equals(other.Width) &&
-            Height.Equals(other.Height) && MinWidth.Equals(other.MinWidth) && MinHeight.Equals(other.MinHeight) &&
-            MaxWidth.Equals(other.MaxWidth) && MaxHeight.Equals(other.MaxHeight) && Margin.Equals(other.Margin) &&
-            Padding.Equals(other.Padding) && Gap.Equals(other.Gap);
+        public bool Equals(LayoutStyle other)
+        {
+            return Position == other.Position && Inset.Equals(other.Inset) && Direction == other.Direction &&
+                   Wrap == other.Wrap && JustifyContent == other.JustifyContent && AlignItems == other.AlignItems &&
+                   AlignSelf == other.AlignSelf && AlignContent == other.AlignContent && Grow.Equals(other.Grow) &&
+                   Shrink.Equals(other.Shrink) && Basis.Equals(other.Basis) && Width.Equals(other.Width) &&
+                   Height.Equals(other.Height) && MinWidth.Equals(other.MinWidth) &&
+                   MinHeight.Equals(other.MinHeight) &&
+                   MaxWidth.Equals(other.MaxWidth) && MaxHeight.Equals(other.MaxHeight) &&
+                   Margin.Equals(other.Margin) &&
+                   Padding.Equals(other.Padding) && Gap.Equals(other.Gap);
+        }
 
-        public override bool Equals(object obj) => obj is LayoutStyle other && Equals(other);
+        public override bool Equals(object obj)
+        {
+            return obj is LayoutStyle other && Equals(other);
+        }
 
-        public override int GetHashCode() => HashCode.Combine(Direction, Width, Height, Margin, Padding);
+        public override int GetHashCode()
+        {
+            return HashCode.Combine(Direction, Width, Height, Margin, Padding);
+        }
     }
 
     public enum TextAlign
@@ -170,14 +212,14 @@ namespace Yaui
         Left,
         Center,
         Right,
-        Justified,
+        Justified
     }
 
     public enum VerticalAlign
     {
         Top,
         Middle,
-        Bottom,
+        Bottom
     }
 
     /// <summary>How a text that does not fit its content box ends.</summary>
@@ -190,7 +232,7 @@ namespace Yaui
         /// The text is cut where it overflows the width (without word wrap) or the height (with word wrap), and ends
         /// with an ellipsis.
         /// </summary>
-        Ellipsis,
+        Ellipsis
     }
 
     /// <summary>The look of the element's box. Drawn by the uber shader without breaking the batch.</summary>
@@ -226,7 +268,7 @@ namespace Yaui
             ShadowColor = Color.clear,
             ShadowOffset = Vector2.zero,
             ShadowBlur = 0f,
-            ShadowSpread = 0f,
+            ShadowSpread = 0f
         };
 
         internal bool HasShadow => ShadowColor.a > 0f;
@@ -256,7 +298,7 @@ namespace Yaui
             Translate = Vector2.zero,
             Rotation = 0f,
             Scale = Vector2.one,
-            Pivot = new Vector2(0.5f, 0.5f),
+            Pivot = new Vector2(0.5f, 0.5f)
         };
     }
 }

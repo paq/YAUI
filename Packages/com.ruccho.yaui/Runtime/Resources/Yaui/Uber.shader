@@ -20,7 +20,10 @@ Shader "Hidden/Yaui/Uber"
 
     SubShader
     {
-        Tags { "RenderType" = "Transparent" "Queue" = "Transparent" "RenderPipeline" = "UniversalPipeline" }
+        Tags
+        {
+            "RenderType" = "Transparent" "Queue" = "Transparent" "RenderPipeline" = "UniversalPipeline"
+        }
         Blend One OneMinusSrcAlpha
         ZWrite Off
         Cull Off
@@ -35,7 +38,10 @@ Shader "Hidden/Yaui/Uber"
         Pass
         {
             Name "Overlay"
-            Tags { "LightMode" = "YauiOverlay" }
+            Tags
+            {
+                "LightMode" = "YauiOverlay"
+            }
             ZTest Always
 
             HLSLPROGRAM

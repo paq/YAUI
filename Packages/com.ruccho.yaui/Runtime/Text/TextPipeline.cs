@@ -21,27 +21,27 @@ namespace Yaui.Text
     /// </summary>
     internal static class TextPipeline
     {
-        static readonly ProfilerMarker FinishMarker = new("Yaui.Text.Finish");
-        static readonly ProfilerMarker ScheduleMarker = new("Yaui.Text.Schedule");
+        private static readonly ProfilerMarker FinishMarker = new("Yaui.Text.Finish");
+        private static readonly ProfilerMarker ScheduleMarker = new("Yaui.Text.Schedule");
 
-        const int MaxParallelism = 2;
+        private const int MaxParallelism = 2;
 
         /// <summary>Texts whose content or look changed since the last scheduling.</summary>
-        static readonly List<YauiText> Dirty = new();
+        private static readonly List<YauiText> Dirty = new();
 
         /// <summary>Texts to convert into primitives at <see cref="Finish"/>.</summary>
-        static readonly List<YauiText> Render = new();
+        private static readonly List<YauiText> Render = new();
 
-        static readonly List<YauiText> InFlight = new();
-        static readonly List<AtgText> ResolveBuffer = new();
+        private static readonly List<YauiText> InFlight = new();
+        private static readonly List<AtgText> ResolveBuffer = new();
 
         // Batches of this frame (early and deadline), kept alive until the jobs complete.
-        static readonly List<Batch> Batches = new();
-        static readonly Stack<Batch> BatchPool = new();
+        private static readonly List<Batch> Batches = new();
+        private static readonly Stack<Batch> BatchPool = new();
 
-        static JobHandle handle;
+        private static JobHandle handle;
 
-        sealed class Batch
+        private sealed class Batch
         {
             public readonly List<AtgText> Texts = new();
             public readonly List<float> Widths = new();
@@ -50,13 +50,13 @@ namespace Yaui.Text
         }
 
         /// <summary>Registered texts.</summary>
-        static readonly HashSet<YauiText> Live = new();
+        private static readonly HashSet<YauiText> Live = new();
 
         // Set by TextCore's notifications, possibly off the main thread.
-        static volatile bool fontsChanged;
-        static Delegate fontPropertyHandler;
-        static object fontPropertyEvent;
-        static Action<UnityEngine.Texture, UnityEngine.TextCore.Text.FontAsset> textureChangedHandler;
+        private static volatile bool fontsChanged;
+        private static Delegate fontPropertyHandler;
+        private static object fontPropertyEvent;
+        private static Action<UnityEngine.Texture, UnityEngine.TextCore.Text.FontAsset> textureChangedHandler;
 
         /// <summary>
         /// Counts changes of font assets. Text generators of an older epoch are replaced: their generation info
@@ -64,9 +64,15 @@ namespace Yaui.Text
         /// </summary>
         public static int FontEpoch { get; private set; }
 
-        public static void Register(YauiText text) => Live.Add(text);
+        public static void Register(YauiText text)
+        {
+            Live.Add(text);
+        }
 
-        public static void Unregister(YauiText text) => Live.Remove(text);
+        public static void Unregister(YauiText text)
+        {
+            Live.Remove(text);
+        }
 
         /// <summary>
         /// Main thread: listens to TextCore's notifications of changed font assets (atlases cleared, e.g. by the
@@ -107,17 +113,13 @@ namespace Yaui.Text
             try
             {
                 if (fontPropertyEvent != null && fontPropertyHandler != null)
-                {
                     fontPropertyEvent.GetType().GetMethod("Remove", new[] { typeof(Action<bool, UnityEngine.Object>) })
                         ?.Invoke(fontPropertyEvent, new object[] { fontPropertyHandler });
-                }
 
                 var textureChanged = TextureChangedField;
                 if (textureChanged != null && textureChangedHandler != null)
-                {
                     textureChanged.SetValue(null, Delegate.Remove((Delegate)textureChanged.GetValue(null),
                         textureChangedHandler));
-                }
             }
             catch (Exception)
             {
@@ -130,17 +132,22 @@ namespace Yaui.Text
             Live.Clear();
         }
 
-        static System.Reflection.FieldInfo TextureChangedField =>
+        private static System.Reflection.FieldInfo TextureChangedField =>
             typeof(UnityEngine.TextCore.Text.FontAsset).GetField("OnFontAssetTextureChanged",
                 System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.NonPublic |
                 System.Reflection.BindingFlags.Static);
 
-        static void OnFontPropertyChanged(bool changed, UnityEngine.Object asset) => FontsChanged();
-
-        static void OnFontTextureChanged(UnityEngine.Texture texture, UnityEngine.TextCore.Text.FontAsset asset) =>
+        private static void OnFontPropertyChanged(bool changed, UnityEngine.Object asset)
+        {
             FontsChanged();
+        }
 
-        static void FontsChanged()
+        private static void OnFontTextureChanged(UnityEngine.Texture texture, UnityEngine.TextCore.Text.FontAsset asset)
+        {
+            FontsChanged();
+        }
+
+        private static void FontsChanged()
         {
             fontsChanged = true;
             YauiSystem.RequestUpdate();
@@ -176,16 +183,10 @@ namespace Yaui.Text
                 fontsChanged = false;
                 FontEpoch++;
                 Pools.ClearTexts();
-                foreach (var text in Live)
-                {
-                    MarkDirty(text);
-                }
+                foreach (var text in Live) MarkDirty(text);
             }
 
-            if (Dirty.Count == 0)
-            {
-                return;
-            }
+            if (Dirty.Count == 0) return;
 
             if (!AtgText.IsSupported)
             {
@@ -193,10 +194,7 @@ namespace Yaui.Text
                 foreach (var text in Dirty)
                 {
                     text.GenerationDirty = false;
-                    if (text.PrepareFallback())
-                    {
-                        MarkRender(text);
-                    }
+                    if (text.PrepareFallback()) MarkRender(text);
                 }
 
                 Dirty.Clear();
@@ -207,22 +205,17 @@ namespace Yaui.Text
 
             // A text changed again after the early scheduling is still being generated.
             foreach (var text in Dirty)
-            {
                 if (text.GenerationInFlight)
                 {
                     Complete();
                     break;
                 }
-            }
 
             var batch = BatchPool.Count > 0 ? BatchPool.Pop() : new Batch();
             foreach (var text in Dirty)
             {
                 text.GenerationDirty = false;
-                if (!text.PrepareGeneration(out var atg, out var width))
-                {
-                    continue;
-                }
+                if (!text.PrepareGeneration(out var atg, out var width)) continue;
 
                 text.GenerationInFlight = true;
                 InFlight.Add(text);
@@ -256,10 +249,7 @@ namespace Yaui.Text
         {
             handle.Complete();
             handle = default;
-            foreach (var text in InFlight)
-            {
-                text.GenerationInFlight = false;
-            }
+            foreach (var text in InFlight) text.GenerationInFlight = false;
 
             InFlight.Clear();
             foreach (var batch in Batches)
@@ -277,20 +267,13 @@ namespace Yaui.Text
         /// <summary>Main thread, after the layout is applied: writes the glyphs of the changed texts.</summary>
         public static void Finish()
         {
-            if (Render.Count == 0)
-            {
-                return;
-            }
+            if (Render.Count == 0) return;
 
             using var _ = FinishMarker.Auto();
             ResolveBuffer.Clear();
             foreach (var text in Render)
-            {
                 if (text.PrepareRender(out var atg))
-                {
                     ResolveBuffer.Add(atg);
-                }
-            }
 
             AtgText.ResolveMissingGlyphs(ResolveBuffer);
             foreach (var text in Render)
@@ -311,13 +294,15 @@ namespace Yaui.Text
             text.RenderPending = false;
         }
 
-        struct GenerateJob : IJobFor
+        private struct GenerateJob : IJobFor
         {
             public GCHandle Texts;
             public GCHandle Widths;
 
-            public void Execute(int index) =>
+            public void Execute(int index)
+            {
                 ((List<AtgText>)Texts.Target)[index].Generate(((List<float>)Widths.Target)[index]);
+            }
         }
     }
 }

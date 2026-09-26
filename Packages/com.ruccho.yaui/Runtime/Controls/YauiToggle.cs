@@ -12,7 +12,7 @@ namespace Yaui
         None,
 
         /// <summary>The graphic fades in and out.</summary>
-        Fade,
+        Fade
     }
 
     /// <summary>
@@ -27,16 +27,16 @@ namespace Yaui
         {
         }
 
-        [SerializeField] bool isOn = true;
+        [SerializeField] private bool isOn = true;
 
         /// <summary>Shown while on (the checkmark). Its opacity is driven by the toggle.</summary>
-        [SerializeField] YauiElement graphic;
+        [SerializeField] private YauiElement graphic;
 
-        [SerializeField] ToggleTransition toggleTransition = ToggleTransition.Fade;
-        [SerializeField] YauiToggleGroup group;
-        [SerializeField] ToggleEvent onValueChanged = new();
+        [SerializeField] private ToggleTransition toggleTransition = ToggleTransition.Fade;
+        [SerializeField] private YauiToggleGroup group;
+        [SerializeField] private ToggleEvent onValueChanged = new();
 
-        [NonSerialized] OpacityFade fade;
+        [NonSerialized] private OpacityFade fade;
 
         public bool IsOn
         {
@@ -65,24 +65,15 @@ namespace Yaui
             get => group;
             set
             {
-                if (group == value)
-                {
-                    return;
-                }
+                if (group == value) return;
 
-                if (group != null && isActiveAndEnabled)
-                {
-                    group.Unregister(this);
-                }
+                if (group != null && isActiveAndEnabled) group.Unregister(this);
 
                 group = value;
                 if (group != null && isActiveAndEnabled)
                 {
                     group.Register(this);
-                    if (isOn)
-                    {
-                        group.NotifyOn(this);
-                    }
+                    if (isOn) group.NotifyOn(this);
                 }
             }
         }
@@ -94,7 +85,10 @@ namespace Yaui
         }
 
         /// <summary>Switches without invoking <see cref="OnValueChanged"/>.</summary>
-        public void SetIsOnWithoutNotify(bool value) => Set(value, false);
+        public void SetIsOnWithoutNotify(bool value)
+        {
+            Set(value, false);
+        }
 
         protected override void OnEnable()
         {
@@ -102,10 +96,7 @@ namespace Yaui
             if (group != null)
             {
                 group.Register(this);
-                if (isOn)
-                {
-                    group.NotifyOn(this);
-                }
+                if (isOn) group.NotifyOn(this);
             }
 
             ShowGraphic(true);
@@ -113,10 +104,7 @@ namespace Yaui
 
         protected override void OnDisable()
         {
-            if (group != null)
-            {
-                group.Unregister(this);
-            }
+            if (group != null) group.Unregister(this);
 
             fade?.Stop();
             base.OnDisable();
@@ -125,44 +113,26 @@ namespace Yaui
         protected override void OnValidate()
         {
             base.OnValidate();
-            if (isActiveAndEnabled)
-            {
-                ShowGraphic(true);
-            }
+            if (isActiveAndEnabled) ShowGraphic(true);
         }
 
-        void Set(bool value, bool notify)
+        private void Set(bool value, bool notify)
         {
-            if (isOn == value)
-            {
-                return;
-            }
+            if (isOn == value) return;
 
             // A group that does not allow all toggles off keeps the last one on.
-            if (!value && group != null && isActiveAndEnabled && !group.AllowSwitchOff && group.IsOnlyOn(this))
-            {
-                return;
-            }
+            if (!value && group != null && isActiveAndEnabled && !group.AllowSwitchOff && group.IsOnlyOn(this)) return;
 
             isOn = value;
-            if (isOn && group != null && isActiveAndEnabled)
-            {
-                group.NotifyOn(this);
-            }
+            if (isOn && group != null && isActiveAndEnabled) group.NotifyOn(this);
 
             ShowGraphic(toggleTransition == ToggleTransition.None);
-            if (notify)
-            {
-                onValueChanged.Invoke(isOn);
-            }
+            if (notify) onValueChanged.Invoke(isOn);
         }
 
-        void ShowGraphic(bool instant)
+        private void ShowGraphic(bool instant)
         {
-            if (graphic == null)
-            {
-                return;
-            }
+            if (graphic == null) return;
 
             var target = isOn ? 1f : 0f;
             if (instant || !Application.isPlaying)
@@ -178,10 +148,7 @@ namespace Yaui
 
         public virtual void OnPointerClick(PointerEventData eventData)
         {
-            if (eventData.button == PointerEventData.InputButton.Left && IsInteractable)
-            {
-                IsOn = !isOn;
-            }
+            if (eventData.button == PointerEventData.InputButton.Left && IsInteractable) IsOn = !isOn;
         }
 
         public virtual void OnSubmit(BaseEventData eventData)
@@ -197,11 +164,11 @@ namespace Yaui
     /// <summary>Fades the opacity of an element.</summary>
     internal sealed class OpacityFade : ITicker
     {
-        YauiElement target;
-        float from;
-        float to;
-        float start;
-        float duration;
+        private YauiElement target;
+        private float from;
+        private float to;
+        private float start;
+        private float duration;
 
         public void Start(YauiElement element, float opacity, float seconds)
         {
@@ -221,10 +188,7 @@ namespace Yaui
 
         public bool Tick(float time)
         {
-            if (target == null)
-            {
-                return false;
-            }
+            if (target == null) return false;
 
             var t = Mathf.Clamp01((time - start) / duration);
             target.Opacity = Mathf.Lerp(from, to, t);

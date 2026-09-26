@@ -20,7 +20,10 @@ Shader "Hidden/Yaui/Mask"
 
     SubShader
     {
-        Tags { "RenderType" = "Transparent" "Queue" = "Transparent" "RenderPipeline" = "UniversalPipeline" }
+        Tags
+        {
+            "RenderType" = "Transparent" "Queue" = "Transparent" "RenderPipeline" = "UniversalPipeline"
+        }
         ZWrite Off
         Cull Off
         ColorMask 0
@@ -34,7 +37,10 @@ Shader "Hidden/Yaui/Mask"
         Pass
         {
             Name "Overlay"
-            Tags { "LightMode" = "YauiOverlay" }
+            Tags
+            {
+                "LightMode" = "YauiOverlay"
+            }
             ZTest Always
 
             HLSLPROGRAM

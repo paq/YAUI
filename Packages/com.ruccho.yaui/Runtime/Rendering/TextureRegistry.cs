@@ -28,36 +28,42 @@ namespace Yaui.Rendering
     {
         public const int SlotCount = 8;
 
-        readonly List<Texture> textures = new() { null };
-        readonly List<Vector4> parameters = new() { Vector4.zero };
-        readonly List<int> references = new() { 0 };
-        readonly Stack<int> free = new();
-        readonly Dictionary<Texture, int> ids = new();
-        readonly Dictionary<Sprite, AtlasedSprite> atlasedSprites = new();
+        private readonly List<Texture> textures = new() { null };
+        private readonly List<Vector4> parameters = new() { Vector4.zero };
+        private readonly List<int> references = new() { 0 };
+        private readonly Stack<int> free = new();
+        private readonly Dictionary<Texture, int> ids = new();
+        private readonly Dictionary<Sprite, AtlasedSprite> atlasedSprites = new();
 
-        struct AtlasedSprite
+        private struct AtlasedSprite
         {
             public DynamicAtlas.Entry Entry;
             public int References;
         }
 
-        public TextureRegistry() => Atlas = new DynamicAtlas(this);
+        public TextureRegistry()
+        {
+            Atlas = new DynamicAtlas(this);
+        }
 
         public DynamicAtlas Atlas { get; }
 
-        public Texture Get(int id) => id > 0 && id < textures.Count ? textures[id] : null;
+        public Texture Get(int id)
+        {
+            return id > 0 && id < textures.Count ? textures[id] : null;
+        }
 
         /// <summary>x: width in texels, y: distance field spread in texels, z: height in texels.</summary>
-        public Vector4 Parameters(int id) => id > 0 && id < parameters.Count ? parameters[id] : Vector4.zero;
+        public Vector4 Parameters(int id)
+        {
+            return id > 0 && id < parameters.Count ? parameters[id] : Vector4.zero;
+        }
 
         /// <summary>The id of a texture that stays registered (font atlases).</summary>
         public int GetPermanent(Texture texture, float spread)
         {
             var id = Acquire(texture);
-            if (references[id] > 1)
-            {
-                references[id]--;
-            }
+            if (references[id] > 1) references[id]--;
 
             parameters[id] = new Vector4(texture.width, spread, texture.height, 0f);
             return id;
@@ -82,10 +88,7 @@ namespace Yaui.Rendering
             else
             {
                 id = textures.Count;
-                if (id > ushort.MaxValue)
-                {
-                    throw new InvalidOperationException("[YAUI] Too many textures in use.");
-                }
+                if (id > ushort.MaxValue) throw new InvalidOperationException("[YAUI] Too many textures in use.");
 
                 textures.Add(texture);
                 parameters.Add(new Vector4(texture.width, 0f, texture.height, 0f));
@@ -98,15 +101,9 @@ namespace Yaui.Rendering
 
         public void Release(int id)
         {
-            if (id <= 0 || id >= references.Count || references[id] <= 0 || --references[id] > 0)
-            {
-                return;
-            }
+            if (id <= 0 || id >= references.Count || references[id] <= 0 || --references[id] > 0) return;
 
-            if (textures[id] != null)
-            {
-                ids.Remove(textures[id]);
-            }
+            if (textures[id] != null) ids.Remove(textures[id]);
 
             textures[id] = null;
             free.Push(id);
@@ -135,7 +132,7 @@ namespace Yaui.Rendering
                 TextureId = Acquire(texture),
                 Uv = new float4(r.xMin / texture.width, r.yMin / texture.height, r.xMax / texture.width,
                     r.yMax / texture.height),
-                TextureSize = new float2(texture.width, texture.height),
+                TextureSize = new float2(texture.width, texture.height)
             };
         }
 
@@ -159,17 +156,20 @@ namespace Yaui.Rendering
             Release(texture.TextureId);
         }
 
-        SpriteTexture AtlasedTexture(DynamicAtlas.Entry entry)
+        private SpriteTexture AtlasedTexture(DynamicAtlas.Entry entry)
         {
             var size = new float2(entry.Page.Texture.width, entry.Page.Texture.height);
             return new SpriteTexture
             {
                 TextureId = entry.Page.TextureId,
                 Uv = new float4(entry.Rect.xMin, entry.Rect.yMin, entry.Rect.xMax, entry.Rect.yMax) / size.xyxy,
-                TextureSize = size,
+                TextureSize = size
             };
         }
 
-        public void Dispose() => Atlas.Dispose();
+        public void Dispose()
+        {
+            Atlas.Dispose();
+        }
     }
 }

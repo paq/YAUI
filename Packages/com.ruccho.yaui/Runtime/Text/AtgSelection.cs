@@ -15,7 +15,7 @@ namespace Yaui.Text
     {
         public delegate void WordBoundsFunc(IntPtr info, int index, out int start, out int end);
 
-        static bool initialized;
+        private static bool initialized;
 
         public static bool Available { get; private set; }
 
@@ -36,10 +36,7 @@ namespace Yaui.Text
 
         public static bool Initialize()
         {
-            if (initialized)
-            {
-                return Available;
-            }
+            if (initialized) return Available;
 
             initialized = true;
             try
@@ -69,16 +66,14 @@ namespace Yaui.Text
             return Available;
         }
 
-        static T Delegate<T>(Type type, string name) where T : Delegate
+        private static T Delegate<T>(Type type, string name) where T : Delegate
         {
             var invoke = typeof(T).GetMethod("Invoke")!;
             var parameters = Array.ConvertAll(invoke.GetParameters(), p => p.ParameterType);
             var method = type.GetMethod(name, BindingFlags.NonPublic | BindingFlags.Public | BindingFlags.Static,
-                             null, parameters, null) ?? throw new MissingMethodException(type.FullName, name);
+                null, parameters, null) ?? throw new MissingMethodException(type.FullName, name);
             if (method.ReturnType != invoke.ReturnType)
-            {
                 throw new MissingMethodException($"{type.FullName}.{name} returns {method.ReturnType}.");
-            }
 
             return (T)System.Delegate.CreateDelegate(typeof(T), method);
         }

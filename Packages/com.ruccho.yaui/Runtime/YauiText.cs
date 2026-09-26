@@ -19,71 +19,71 @@ namespace Yaui
     [AddComponentMenu("YAUI/Text")]
     public class YauiText : YauiElement
     {
-        [SerializeField] [TextArea(2, 8)] string text = "Text";
+        [SerializeField] [TextArea(2, 8)] private string text = "Text";
 
         /// <summary>The built-in font when null.</summary>
-        [SerializeField] Font font;
+        [SerializeField] private Font font;
 
-        [SerializeField] float fontSize = 36f;
-        [SerializeField] Color color = Color.black;
-        [SerializeField] TextAlign align = TextAlign.Left;
-        [SerializeField] VerticalAlign verticalAlign = VerticalAlign.Top;
-        [SerializeField] bool wordWrap = true;
-        [SerializeField] bool richText = true;
+        [SerializeField] private float fontSize = 36f;
+        [SerializeField] private Color color = Color.black;
+        [SerializeField] private TextAlign align = TextAlign.Left;
+        [SerializeField] private VerticalAlign verticalAlign = VerticalAlign.Top;
+        [SerializeField] private bool wordWrap = true;
+        [SerializeField] private bool richText = true;
 
         /// <summary>The sprites of &lt;sprite&gt; tags (TextCore sprite asset), or none.</summary>
-        [SerializeField] SpriteAsset spriteAsset;
+        [SerializeField] private SpriteAsset spriteAsset;
 
-        [SerializeField] TextOverflow overflow = TextOverflow.Visible;
+        [SerializeField] private TextOverflow overflow = TextOverflow.Visible;
 
         /// <summary>
         /// Canvas units around the glyphs, drawn in <see cref="outlineColor"/>. Limited by the distance field of the
         /// font atlas (about a tenth of the font size for dynamic fonts).
         /// </summary>
-        [SerializeField] float outlineWidth;
+        [SerializeField] private float outlineWidth;
 
-        [SerializeField] Color outlineColor = Color.black;
+        [SerializeField] private Color outlineColor = Color.black;
 
         /// <summary>A copy of the glyphs (and their outline) drawn below them. None without offset or blur.</summary>
-        [SerializeField] Color shadowColor = new(0f, 0f, 0f, 0.5f);
+        [SerializeField] private Color shadowColor = new(0f, 0f, 0f, 0.5f);
 
-        [SerializeField] Vector2 shadowOffset;
+        [SerializeField] private Vector2 shadowOffset;
 
         /// <summary>Softness of the shadow's edge in canvas units. Limited like <see cref="outlineWidth"/>.</summary>
-        [SerializeField] float shadowBlur;
+        [SerializeField] private float shadowBlur;
 
-        static Font defaultFont;
-        static readonly List<GlyphQuad> Glyphs = new();
+        private static Font defaultFont;
+        private static readonly List<GlyphQuad> Glyphs = new();
 
-        [NonSerialized] AtgText atg;
-        [NonSerialized] FallbackText fallback;
-        [NonSerialized] int atgEpoch;
+        [NonSerialized] private AtgText atg;
+        [NonSerialized] private FallbackText fallback;
+        [NonSerialized] private int atgEpoch;
 
         // The fallback generated at the final width with another size: the next layout must not reuse it.
-        [NonSerialized] bool forceRelayout;
-        [NonSerialized] Font fontAssetSource;
-        [NonSerialized] FontAsset fontAsset;
-        [NonSerialized] YogaMeasureFunc measure;
-        [NonSerialized] int glyphStart;
-        [NonSerialized] int glyphCapacity;
-        [NonSerialized] bool measureDirty;
+        [NonSerialized] private bool forceRelayout;
+        [NonSerialized] private Font fontAssetSource;
+        [NonSerialized] private FontAsset fontAsset;
+        [NonSerialized] private YogaMeasureFunc measure;
+        [NonSerialized] private int glyphStart;
+        [NonSerialized] private int glyphCapacity;
+        [NonSerialized] private bool measureDirty;
 
         // The generation drawn last: its width and its size rounded as measured.
-        [NonSerialized] float renderedWidth = float.NaN;
-        [NonSerialized] float2 renderedSize = float.NaN;
+        [NonSerialized] private float renderedWidth = float.NaN;
+        [NonSerialized] private float2 renderedSize = float.NaN;
 
         // The size of the text at the final width, before it was elided.
-        [NonSerialized] float2 naturalSize;
+        [NonSerialized] private float2 naturalSize;
 
         // Values of the last preparation, to tell layout changes from look changes.
-        [NonSerialized] string preparedText;
-        [NonSerialized] Font preparedFont;
-        [NonSerialized] float preparedFontSize;
-        [NonSerialized] TextAlign preparedAlign;
-        [NonSerialized] bool preparedWordWrap;
-        [NonSerialized] bool preparedRichText;
-        [NonSerialized] SpriteAsset preparedSpriteAsset;
-        [NonSerialized] TextOverflow preparedOverflow;
+        [NonSerialized] private string preparedText;
+        [NonSerialized] private Font preparedFont;
+        [NonSerialized] private float preparedFontSize;
+        [NonSerialized] private TextAlign preparedAlign;
+        [NonSerialized] private bool preparedWordWrap;
+        [NonSerialized] private bool preparedRichText;
+        [NonSerialized] private SpriteAsset preparedSpriteAsset;
+        [NonSerialized] private TextOverflow preparedOverflow;
 
         [NonSerialized] internal bool GenerationDirty;
         [NonSerialized] internal bool GenerationInFlight;
@@ -94,10 +94,7 @@ namespace Yaui
             get => text;
             set
             {
-                if (text == value)
-                {
-                    return;
-                }
+                if (text == value) return;
 
                 text = value;
                 SyncText();
@@ -247,17 +244,18 @@ namespace Yaui
 
         internal override bool AcceptsChildren => false;
 
-        bool HasShadow => shadowColor.a > 0f && (shadowOffset != Vector2.zero || shadowBlur > 0f);
+        private bool HasShadow => shadowColor.a > 0f && (shadowOffset != Vector2.zero || shadowBlur > 0f);
 
-        bool HasGeneration => atg != null ? atg.IsGenerated : fallback != null && fallback.IsGenerated;
+        private bool HasGeneration => atg != null ? atg.IsGenerated : fallback != null && fallback.IsGenerated;
 
-        float GenerationWidth => atg != null ? atg.GeneratedWidth : fallback.GeneratedWidth;
+        private float GenerationWidth => atg != null ? atg.GeneratedWidth : fallback.GeneratedWidth;
 
-        float2 GenerationSize => atg != null ? atg.Size : fallback.Size;
+        private float2 GenerationSize => atg != null ? atg.Size : fallback.Size;
 
         private protected override bool HasVisibleContent => !string.IsNullOrEmpty(text);
 
-        Font EffectiveFont => font != null ? font : defaultFont ??= Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+        private Font EffectiveFont =>
+            font != null ? font : defaultFont ??= Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
 
         protected override void OnValidate()
         {
@@ -280,26 +278,18 @@ namespace Yaui
         private protected override void OnUnregistering()
         {
             TextPipeline.Unregister(this);
-            if (GenerationInFlight)
-            {
-                TextPipeline.Complete();
-            }
+            if (GenerationInFlight) TextPipeline.Complete();
 
             TextPipeline.Forget(this);
             if (glyphCapacity > 0 && YauiSystem.IsInitialized)
-            {
                 YauiSystem.Primitives.FreeRange(glyphStart, glyphCapacity);
-            }
 
             glyphStart = 0;
             glyphCapacity = 0;
             renderedLength = -1;
             renderedWidth = float.NaN;
             renderedSize = float.NaN;
-            if (atg != null)
-            {
-                Pools.ReturnText(atg);
-            }
+            if (atg != null) Pools.ReturnText(atg);
 
             atg = null;
             fallback = null;
@@ -307,12 +297,9 @@ namespace Yaui
         }
 
         /// <summary>Queues generation. A change of anything but the look also re-runs the layout.</summary>
-        void SyncText()
+        private void SyncText()
         {
-            if (NodeSlot <= 0)
-            {
-                return;
-            }
+            if (NodeSlot <= 0) return;
 
             if (text != preparedText || EffectiveFont != preparedFont || fontSize != preparedFontSize ||
                 align != preparedAlign || wordWrap != preparedWordWrap || richText != preparedRichText ||
@@ -328,12 +315,9 @@ namespace Yaui
         }
 
         /// <summary>The outline and the shadow only change the primitives of the current generation.</summary>
-        void SyncEffects()
+        private void SyncEffects()
         {
-            if (NodeSlot <= 0)
-            {
-                return;
-            }
+            if (NodeSlot <= 0) return;
 
             TextPipeline.MarkRender(this);
             YauiSystem.RequestUpdate();
@@ -344,10 +328,7 @@ namespace Yaui
             // A change of the text only dirties the measurement, not the style.
             base.PrepareLayout();
             var y = Yoga;
-            if (!y.HasMeasureFunc)
-            {
-                y.SetMeasureFunction(measure ??= Measure);
-            }
+            if (!y.HasMeasureFunc) y.SetMeasureFunction(measure ??= Measure);
 
             if (measureDirty)
             {
@@ -362,10 +343,7 @@ namespace Yaui
         /// </summary>
         internal bool PrepareFallback()
         {
-            if (NodeSlot <= 0)
-            {
-                return false;
-            }
+            if (NodeSlot <= 0) return false;
 
             atg?.Dispose();
             atg = null;
@@ -386,10 +364,7 @@ namespace Yaui
         {
             generator = null;
             width = -1f;
-            if (NodeSlot <= 0 || !AtgText.IsSupported)
-            {
-                return false;
-            }
+            if (NodeSlot <= 0 || !AtgText.IsSupported) return false;
 
             var source = EffectiveFont;
             if (fontAsset == null || fontAssetSource != source)
@@ -398,10 +373,7 @@ namespace Yaui
                 fontAssetSource = source;
             }
 
-            if (fontAsset == null)
-            {
-                return false;
-            }
+            if (fontAsset == null) return false;
 
             // After a change of font assets the generation info caches stale glyph positions.
             if (atg != null && atgEpoch != TextPipeline.FontEpoch)
@@ -415,6 +387,7 @@ namespace Yaui
                 atg = Pools.RentText();
                 atgEpoch = TextPipeline.FontEpoch;
             }
+
             atg.Prepare((text ?? string.Empty).AsSpan(), new TextRequest
             {
                 Font = fontAsset,
@@ -424,7 +397,7 @@ namespace Yaui
                 WordWrap = wordWrap,
                 RichText = richText,
                 Ellipsis = overflow == TextOverflow.Ellipsis,
-                SpriteAsset = spriteAsset,
+                SpriteAsset = spriteAsset
             });
             preparedSpriteAsset = spriteAsset;
             preparedOverflow = overflow;
@@ -466,16 +439,13 @@ namespace Yaui
         /// Layout thread: the size of the text within the available space. Regenerates only if the last generation
         /// cannot tell (Yoga node only; no Unity objects).
         /// </summary>
-        YogaSize Measure(YogaNode node, float width, YogaMeasureMode widthMode, float height,
+        private YogaSize Measure(YogaNode node, float width, YogaMeasureMode widthMode, float height,
             YogaMeasureMode heightMode)
         {
             if (fallback != null)
             {
                 // The public generator cannot run here: the last generation it is.
-                if (!fallback.IsGenerated)
-                {
-                    return new YogaSize(0f, 0f);
-                }
+                if (!fallback.IsGenerated) return new YogaSize(0f, 0f);
             }
             else if (atg == null || !atg.IsPrepared)
             {
@@ -483,10 +453,7 @@ namespace Yaui
             }
 
             var available = widthMode == YogaMeasureMode.Undefined || float.IsNaN(width) ? -1f : width;
-            if (atg != null && !CanReuse(available, sizeOnly: true))
-            {
-                atg.Generate(available);
-            }
+            if (atg != null && !CanReuse(available, true)) atg.Generate(available);
 
             // Rounded up so that pixel grid rounding of the layout never makes the text wrap.
             var size = math.ceil(GenerationSize);
@@ -494,13 +461,13 @@ namespace Yaui
             {
                 YogaMeasureMode.Exactly => width,
                 YogaMeasureMode.AtMost => math.min(size.x, width),
-                _ => size.x,
+                _ => size.x
             };
             var h = heightMode switch
             {
                 YogaMeasureMode.Exactly => height,
                 YogaMeasureMode.AtMost => math.min(size.y, height),
-                _ => size.y,
+                _ => size.y
             };
             return new YogaSize(w, h);
         }
@@ -510,42 +477,28 @@ namespace Yaui
         /// breaking, the lines are the same for any width between the longest line and the width generated with.
         /// Other alignments than left also depend on the width itself, unless only the size is needed.
         /// </summary>
-        bool CanReuse(float width, bool sizeOnly)
+        private bool CanReuse(float width, bool sizeOnly)
         {
             // An elided generation is not the size of the text.
-            if (!HasGeneration || atg != null && atg.ElidedHeight >= 0f)
-            {
-                return false;
-            }
+            if (!HasGeneration || (atg != null && atg.ElidedHeight >= 0f)) return false;
 
             var generated = GenerationWidth;
-            if (generated == width)
-            {
-                return true;
-            }
+            if (generated == width) return true;
 
             // Without word wrap the lines never depend on the width; only the alignment does.
-            if (!preparedWordWrap)
-            {
-                return sizeOnly || preparedAlign == TextAlign.Left;
-            }
+            if (!preparedWordWrap) return sizeOnly || preparedAlign == TextAlign.Left;
 
             // The prepared values, since this runs on the layout thread while setters may run.
-            if (!sizeOnly && preparedAlign != TextAlign.Left)
-            {
-                return false;
-            }
+            if (!sizeOnly && preparedAlign != TextAlign.Left) return false;
 
             if (width < 0f)
-            {
                 // Unconstrained: the same only if it was generated unconstrained.
                 return generated < 0f;
-            }
 
             return (generated < 0f || generated >= width) && GenerationSize.x <= width;
         }
 
-        float ContentWidth()
+        private float ContentWidth()
         {
             var y = Yoga;
             var width = y.LayoutWidth - y.LayoutPaddingLeft - y.LayoutPaddingRight - y.LayoutBorderLeft -
@@ -553,7 +506,7 @@ namespace Yaui
             return float.IsNaN(width) || width <= 0f ? -1f : width;
         }
 
-        float ContentHeight()
+        private float ContentHeight()
         {
             var y = Yoga;
             var height = y.LayoutHeight - y.LayoutPaddingTop - y.LayoutPaddingBottom - y.LayoutBorderTop -
@@ -561,7 +514,10 @@ namespace Yaui
             return float.IsNaN(height) ? -1f : math.max(height, 0f);
         }
 
-        internal override void OnLayoutApplied() => TextPipeline.MarkRender(this);
+        internal override void OnLayoutApplied()
+        {
+            TextPipeline.MarkRender(this);
+        }
 
         /// <summary>Main thread, at collection: makes the generation match the final width.</summary>
         internal bool PrepareRender(out AtgText generator)
@@ -569,7 +525,7 @@ namespace Yaui
             generator = null;
             if (fallback != null)
             {
-                if (NodeSlot > 0 && fallback.IsGenerated && !CanReuse(ContentWidth(), sizeOnly: false))
+                if (NodeSlot > 0 && fallback.IsGenerated && !CanReuse(ContentWidth(), false))
                 {
                     var before = fallback.Size;
                     fallback.Generate(ContentWidth());
@@ -584,16 +540,10 @@ namespace Yaui
                 return false;
             }
 
-            if (NodeSlot <= 0 || atg == null || !atg.IsPrepared)
-            {
-                return false;
-            }
+            if (NodeSlot <= 0 || atg == null || !atg.IsPrepared) return false;
 
             var width = ContentWidth();
-            if (!CanReuse(width, sizeOnly: false))
-            {
-                atg.Generate(width);
-            }
+            if (!CanReuse(width, false)) atg.Generate(width);
 
             naturalSize = atg.Size;
             if (preparedOverflow == TextOverflow.Ellipsis && width >= 0f)
@@ -601,10 +551,7 @@ namespace Yaui
                 // Rounded like the measurement, so that a text that fits is never elided.
                 var height = ContentHeight();
                 var size = math.ceil(naturalSize);
-                if (height >= 0f && (size.x > width + 0.01f || size.y > height + 0.01f))
-                {
-                    atg.Generate(width, height);
-                }
+                if (height >= 0f && (size.x > width + 0.01f || size.y > height + 0.01f)) atg.Generate(width, height);
             }
 
             generator = atg;
@@ -614,19 +561,12 @@ namespace Yaui
         /// <summary>Main thread, at collection: writes the glyphs into primitives in node-local space.</summary>
         internal void WriteGlyphs()
         {
-            if (NodeSlot <= 0 || !HasGeneration)
-            {
-                return;
-            }
+            if (NodeSlot <= 0 || !HasGeneration) return;
 
             if (atg != null)
-            {
                 atg.Convert(Glyphs);
-            }
             else
-            {
                 fallback.Convert(Glyphs);
-            }
 
             renderedWidth = GenerationWidth;
             renderedSize = math.ceil(atg != null && atg.ElidedHeight >= 0f ? naturalSize : GenerationSize);
@@ -635,22 +575,15 @@ namespace Yaui
             var shadowed = HasShadow;
             var shadowCount = 0;
             if (shadowed)
-            {
                 foreach (var g in Glyphs)
-                {
                     shadowCount += g.IsSprite ? 0 : 1;
-                }
-            }
 
             var count = Glyphs.Count + shadowCount;
             var capacity = count == 0 ? 0 : GpuStore<PrimitiveData>.RangeCapacity(count);
             var primitives = YauiSystem.Primitives;
             if (capacity != glyphCapacity)
             {
-                if (glyphCapacity > 0)
-                {
-                    primitives.FreeRange(glyphStart, glyphCapacity);
-                }
+                if (glyphCapacity > 0) primitives.FreeRange(glyphStart, glyphCapacity);
 
                 glyphStart = capacity > 0 ? primitives.AllocateRange(capacity) : 0;
                 glyphCapacity = capacity;
@@ -666,7 +599,7 @@ namespace Yaui
             {
                 VerticalAlign.Middle => (content.y - GenerationSize.y) * 0.5f,
                 VerticalAlign.Bottom => content.y - GenerationSize.y,
-                _ => 0f,
+                _ => 0f
             };
 
             // The quads have this much room around the glyphs already.
@@ -690,10 +623,7 @@ namespace Yaui
                 }
 
                 var baseFlags = PrimitiveTexture.With(g.IsSprite ? PrimitiveFlags.Image : PrimitiveFlags.Text, lastId);
-                if (g.Bold)
-                {
-                    baseFlags |= PrimitiveFlags.TextBold;
-                }
+                if (g.Bold) baseFlags |= PrimitiveFlags.TextBold;
 
                 var rect = new float4(origin + g.Min, g.Max - g.Min);
                 if (g.IsSprite)
@@ -705,7 +635,7 @@ namespace Yaui
                         Color = GpuPacking.Color(g.Color),
                         Node = (uint)NodeSlot,
                         Flags = baseFlags,
-                        BorderWidthAndSkew = GpuPacking.Half2(0f, g.Skew),
+                        BorderWidthAndSkew = GpuPacking.Half2(0f, g.Skew)
                     };
                     continue;
                 }
@@ -726,7 +656,7 @@ namespace Yaui
                     BorderColor = outlinePacked,
                     Node = (uint)NodeSlot,
                     Flags = flags,
-                    BorderWidthAndSkew = GpuPacking.Half2(outline, g.Skew),
+                    BorderWidthAndSkew = GpuPacking.Half2(outline, g.Skew)
                 };
 
                 if (shadowed)
@@ -743,15 +673,12 @@ namespace Yaui
                         Radii = GpuPacking.Half4(new float4(blur, 0f, 0f, 0f)),
                         Node = (uint)NodeSlot,
                         Flags = baseFlags | PrimitiveFlags.Shadow,
-                        BorderWidthAndSkew = GpuPacking.Half2(outline, g.Skew),
+                        BorderWidthAndSkew = GpuPacking.Half2(outline, g.Skew)
                     };
                 }
             }
 
-            for (var i = written; i < glyphCapacity; i++)
-            {
-                primitives[glyphStart + i] = default;
-            }
+            for (var i = written; i < glyphCapacity; i++) primitives[glyphStart + i] = default;
 
             // Draws are split by the textures they use: other atlas pages need a new draw order.
             if (signature != textureSignature)
@@ -765,7 +692,7 @@ namespace Yaui
             Rendered?.Invoke();
         }
 
-        struct GlyphRect
+        private struct GlyphRect
         {
             public float4 Rect;
             public float4 Uv;
@@ -775,26 +702,23 @@ namespace Yaui
         /// Grows a glyph quad by <paramref name="amount"/> on every side, keeping the mapping to the atlas. The skew
         /// is around the bottom of the rect, so the UVs shift to keep the glyph where it was.
         /// </summary>
-        static GlyphRect Expand(float4 rect, float4 uv, float2 uvPerUnit, float skew, float amount)
+        private static GlyphRect Expand(float4 rect, float4 uv, float2 uvPerUnit, float skew, float amount)
         {
-            if (amount <= 0f)
-            {
-                return new GlyphRect { Rect = rect, Uv = uv };
-            }
+            if (amount <= 0f) return new GlyphRect { Rect = rect, Uv = uv };
 
             var shift = new float2(skew * amount * uvPerUnit.x, 0f);
             return new GlyphRect
             {
                 Rect = new float4(rect.xy - amount, rect.zw + amount * 2f),
-                Uv = new float4(uv.xy - amount * uvPerUnit + shift, uv.zw + amount * uvPerUnit + shift),
+                Uv = new float4(uv.xy - amount * uvPerUnit + shift, uv.zw + amount * uvPerUnit + shift)
             };
         }
 
-        [NonSerialized] int textureSignature;
+        [NonSerialized] private int textureSignature;
 
         // Where the glyphs of the last written generation start in the element's box, and the length of its text.
-        [NonSerialized] float2 glyphOrigin;
-        [NonSerialized] int renderedLength = -1;
+        [NonSerialized] private float2 glyphOrigin;
+        [NonSerialized] private int renderedLength = -1;
 
         /// <summary>The length of the text of the last written generation, or -1.</summary>
         internal int RenderedLength => renderedLength;
@@ -811,10 +735,7 @@ namespace Yaui
             get
             {
                 var asset = fontAsset != null ? fontAsset : AtgText.GetFontAsset(EffectiveFont);
-                if (asset == null || asset.faceInfo.pointSize <= 0f)
-                {
-                    return fontSize * 1.2f;
-                }
+                if (asset == null || asset.faceInfo.pointSize <= 0f) return fontSize * 1.2f;
 
                 return asset.faceInfo.lineHeight / asset.faceInfo.pointSize * fontSize;
             }
@@ -829,26 +750,22 @@ namespace Yaui
             var info = atg.GenerationInfo;
             var bottom = AtgSelection.CursorPosition(info, index);
             height = AtgSelection.CharacterHeight(info, index);
-            if (height <= 0f)
-            {
-                height = LineHeight;
-            }
+            if (height <= 0f) height = LineHeight;
 
             top = (Vector2)glyphOrigin + new Vector2(bottom.x, bottom.y - height);
         }
 
         /// <summary>The caret index nearest to a point in the element's box.</summary>
-        internal int IndexAt(Vector2 local) =>
-            AtgSelection.IndexFromPosition(atg.GenerationInfo, local - (Vector2)glyphOrigin);
+        internal int IndexAt(Vector2 local)
+        {
+            return AtgSelection.IndexFromPosition(atg.GenerationInfo, local - (Vector2)glyphOrigin);
+        }
 
         /// <summary>The rectangles that highlight the text between two caret indices, in the element's box.</summary>
         internal Rect[] SelectionRects(int from, int to)
         {
             var rects = AtgSelection.HighlightRectangles(atg.GenerationInfo, from, to) ?? Array.Empty<Rect>();
-            for (var i = 0; i < rects.Length; i++)
-            {
-                rects[i].position += (Vector2)glyphOrigin;
-            }
+            for (var i = 0; i < rects.Length; i++) rects[i].position += (Vector2)glyphOrigin;
 
             return rects;
         }
@@ -861,10 +778,7 @@ namespace Yaui
         internal override void AppendDrawOrder(NativeList<uint> order)
         {
             base.AppendDrawOrder(order);
-            for (var i = 0; i < glyphCapacity; i++)
-            {
-                order.Add((uint)(glyphStart + i));
-            }
+            for (var i = 0; i < glyphCapacity; i++) order.Add((uint)(glyphStart + i));
         }
     }
 }

@@ -14,7 +14,7 @@ namespace Yaui
         /// A quad in the scene at this GameObject's Transform, sorted and depth tested with transparent objects.
         /// The canvas size is <see cref="YauiPanel.ReferenceResolution"/>.
         /// </summary>
-        World,
+        World
     }
 
     public enum PanelScaleMode
@@ -23,7 +23,7 @@ namespace Yaui
         ScaleWithScreenSize,
 
         /// <summary>A fixed number of screen pixels per canvas unit (uGUI's Constant Pixel Size).</summary>
-        ConstantScale,
+        ConstantScale
     }
 
     /// <summary>
@@ -36,29 +36,29 @@ namespace Yaui
     [AddComponentMenu("YAUI/Panel")]
     public sealed class YauiPanel : MonoBehaviour
     {
-        [SerializeField] PanelRenderMode renderMode;
+        [SerializeField] private PanelRenderMode renderMode;
 
         /// <summary>Overlay panels with a higher order are drawn on top.</summary>
-        [SerializeField] int sortOrder;
+        [SerializeField] private int sortOrder;
 
-        [SerializeField] PanelScaleMode scaleMode;
+        [SerializeField] private PanelScaleMode scaleMode;
 
         /// <summary>Overlay, <see cref="PanelScaleMode.ConstantScale"/>: screen pixels per canvas unit.</summary>
-        [SerializeField] float constantScale = 1f;
+        [SerializeField] private float constantScale = 1f;
 
-        [SerializeField] Vector2 referenceResolution = new(1080f, 1920f);
+        [SerializeField] private Vector2 referenceResolution = new(1080f, 1920f);
 
         /// <summary>0: match the width of the reference resolution, 1: match the height.</summary>
-        [SerializeField] [Range(0f, 1f)] float match = 0.5f;
+        [SerializeField] [Range(0f, 1f)] private float match = 0.5f;
 
         /// <summary>World space: world units per canvas unit.</summary>
-        [SerializeField] float worldScale = 0.001f;
+        [SerializeField] private float worldScale = 0.001f;
 
         /// <summary>World space: the camera pointer events are seen through (the main camera when null).</summary>
-        [SerializeField] Camera eventCamera;
+        [SerializeField] private Camera eventCamera;
 
-        [NonSerialized] PanelState state;
-        [NonSerialized] YauiElement element;
+        [NonSerialized] private PanelState state;
+        [NonSerialized] private YauiElement element;
 
         public PanelRenderMode RenderMode
         {
@@ -90,10 +90,7 @@ namespace Yaui
         {
             get
             {
-                if (renderMode == PanelRenderMode.World)
-                {
-                    return CanvasToWorld;
-                }
+                if (renderMode == PanelRenderMode.World) return CanvasToWorld;
 
                 var scale = ScaleFactor;
                 return Matrix4x4.Translate(new Vector3(0f, CanvasSize.y * scale, 0f)) *
@@ -173,20 +170,15 @@ namespace Yaui
         public bool TryCanvasToScreen(Vector2 canvas, out Vector2 screenPosition)
         {
             screenPosition = default;
-            if (state == null)
-            {
-                return false;
-            }
+            if (state == null) return false;
 
             if (renderMode == PanelRenderMode.World)
             {
                 var camera = EventCamera;
-                if (camera == null)
-                {
-                    return false;
-                }
+                if (camera == null) return false;
 
-                var screen = camera.WorldToScreenPoint(CanvasToWorld.MultiplyPoint3x4(new Vector3(canvas.x, canvas.y, 0f)));
+                var screen =
+                    camera.WorldToScreenPoint(CanvasToWorld.MultiplyPoint3x4(new Vector3(canvas.x, canvas.y, 0f)));
                 screenPosition = screen;
                 return screen.z > 0f;
             }
@@ -202,25 +194,16 @@ namespace Yaui
             canvas = default;
             distance = 0f;
             worldPosition = Vector3.zero;
-            if (state == null)
-            {
-                return false;
-            }
+            if (state == null) return false;
 
             if (renderMode == PanelRenderMode.World)
             {
                 var camera = EventCamera;
-                if (camera == null)
-                {
-                    return false;
-                }
+                if (camera == null) return false;
 
                 var ray = camera.ScreenPointToRay(screenPosition);
                 var plane = new Plane(transform.forward, transform.position);
-                if (!plane.Raycast(ray, out distance))
-                {
-                    return false;
-                }
+                if (!plane.Raycast(ray, out distance)) return false;
 
                 worldPosition = ray.GetPoint(distance);
                 var local = CanvasToWorld.inverse.MultiplyPoint3x4(worldPosition);
@@ -237,49 +220,48 @@ namespace Yaui
         /// The topmost element that receives hits at a screen position (pixels, origin at the bottom-left), as last
         /// rendered, or null. See <see cref="YauiElement.RaycastTarget"/>.
         /// </summary>
-        public YauiElement HitTest(Vector2 screenPosition) => state?.HitTest(screenPosition);
+        public YauiElement HitTest(Vector2 screenPosition)
+        {
+            return state?.HitTest(screenPosition);
+        }
 
         /// <summary>
         /// Lays out, generates texts and uploads all panels now, so that <see cref="YauiElement.LayoutRect"/> and
         /// hit tests reflect the changes made so far in this frame (like uGUI's Canvas.ForceUpdateCanvases). Costs
         /// the overlap with other work that the frame pipeline gets.
         /// </summary>
-        public static void ForceUpdate() => YauiSystem.ForceUpdate();
+        public static void ForceUpdate()
+        {
+            YauiSystem.ForceUpdate();
+        }
 
         internal YauiElement Element => element != null ? element : element = GetComponent<YauiElement>();
 
-        void OnEnable()
+        private void OnEnable()
         {
             _ = State;
 
             // Elements enabled before this panel registered nowhere, or to a previous state.
-            foreach (var e in GetComponentsInChildren<YauiElement>())
-            {
-                e.Reregister();
-            }
+            foreach (var e in GetComponentsInChildren<YauiElement>()) e.Reregister();
         }
 
-        void OnDisable()
+        private void OnDisable()
         {
-            if (state == null)
-            {
-                return;
-            }
+            if (state == null) return;
 
             var old = state;
             state = null;
             foreach (var e in GetComponentsInChildren<YauiElement>(true))
-            {
                 if (e.IsRegisteredTo(old))
-                {
                     e.Unregister();
-                }
-            }
 
             YauiSystem.DestroyPanel(old);
         }
 
-        void OnValidate() => YauiSystem.RequestUpdate();
+        private void OnValidate()
+        {
+            YauiSystem.RequestUpdate();
+        }
 
         /// <summary>Main thread, at submission: updates the canvas size from the screen size.</summary>
         internal void UpdateCanvas(PanelState s)
@@ -305,14 +287,11 @@ namespace Yaui
             s.CanvasSize = math.max(screen, 1f) / s.ScaleFactor;
         }
 
-        static float2 ScreenSize()
+        private static float2 ScreenSize()
         {
             // The camera the overlay is drawn on. Screen reports the size of whichever view is rendering in the editor.
             var target = YauiSystem.Renderer.TargetSize;
-            if (target.x > 0 && target.y > 0)
-            {
-                return new float2(target.x, target.y);
-            }
+            if (target.x > 0 && target.y > 0) return new float2(target.x, target.y);
 
 #if UNITY_EDITOR
             var size = UnityEditor.Handles.GetMainGameViewSize();

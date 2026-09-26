@@ -8,21 +8,26 @@
 
 namespace Yaui.Layout.Yoga
 {
+    internal readonly struct YogaConfig
+    {
+        public static YogaConfig Default => default;
 
-internal readonly struct YogaConfig
-{
-    public static YogaConfig Default => default;
+        public bool UseWebDefaults => false;
 
-    public bool UseWebDefaults => false;
+        public float PointScaleFactor => 1.0f;
 
-    public float PointScaleFactor => 1.0f;
+        public uint Version => 0;
 
-    public uint Version => 0;
+        public bool IsExperimentalFeatureEnabled(YogaExperimentalFeature feature)
+        {
+            return false;
+        }
 
-    public bool IsExperimentalFeatureEnabled(YogaExperimentalFeature feature) => false;
+        public YogaErrata Errata => YogaErrata.None;
 
-    public YogaErrata Errata => YogaErrata.None;
-
-    public bool HasErrata(YogaErrata errata) => (Errata & errata) != YogaErrata.None;
-}
+        public bool HasErrata(YogaErrata errata)
+        {
+            return (Errata & errata) != YogaErrata.None;
+        }
+    }
 }

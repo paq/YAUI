@@ -12,37 +12,39 @@ namespace Yaui.Tests
     /// </summary>
     public class YogaEquivalenceTests
     {
-        readonly List<YogaNode> created = new();
+        private readonly List<YogaNode> created = new();
 
         [TearDown]
         public void TearDown()
         {
-            foreach (var node in created)
-            {
-                YogaNodeStore.Destroy(node);
-            }
+            foreach (var node in created) YogaNodeStore.Destroy(node);
 
             created.Clear();
         }
 
         // A text-like measure: wraps 160 units of content at the available width, 20 units per line.
-        static YogaSize Measure(float width, YogaMeasureMode widthMode)
+        private static YogaSize Measure(float width, YogaMeasureMode widthMode)
         {
-            var w = widthMode == YogaMeasureMode.Undefined || float.IsNaN(width) ? 160f : Math.Min(160f, Math.Max(width, 1f));
+            var w = widthMode == YogaMeasureMode.Undefined || float.IsNaN(width)
+                ? 160f
+                : Math.Min(160f, Math.Max(width, 1f));
             var lines = (float)Math.Ceiling(160f / Math.Max(w, 1f));
             return new YogaSize(w, lines * 20f);
         }
 
-        sealed class Pair
+        private sealed class Pair
         {
             public YogaNode Node;
             public Ref.YogaNode Reference;
             public readonly List<Pair> Children = new();
         }
 
-        static Ref.YogaValue R(YogaValue v) => new(v.Value, (Ref.YogaUnit)(int)v.Unit);
+        private static Ref.YogaValue R(YogaValue v)
+        {
+            return new Ref.YogaValue(v.Value, (Ref.YogaUnit)(int)v.Unit);
+        }
 
-        YogaValue RandomLength(Random random, bool allowAuto)
+        private YogaValue RandomLength(Random random, bool allowAuto)
         {
             switch (random.Next(allowAuto ? 4 : 3))
             {
@@ -53,7 +55,7 @@ namespace Yaui.Tests
             }
         }
 
-        Pair Build(Random random, int depth)
+        private Pair Build(Random random, int depth)
         {
             var pair = new Pair { Node = YogaNodeStore.Create(), Reference = new Ref.YogaNode() };
             created.Add(pair.Node);
@@ -68,20 +70,25 @@ namespace Yaui.Tests
 
             Set((FlexDirection)random.Next(4), v => n.FlexDirection = v, v => r.FlexDirection = v);
             Set((FlexWrap)random.Next(3), v => n.FlexWrap = v, v => r.FlexWrap = v);
-            Set(new[] { FlexJustify.FlexStart, FlexJustify.Center, FlexJustify.FlexEnd, FlexJustify.SpaceBetween, FlexJustify.SpaceAround, FlexJustify.SpaceEvenly }[random.Next(6)],
+            Set(
+                new[]
+                {
+                    FlexJustify.FlexStart, FlexJustify.Center, FlexJustify.FlexEnd, FlexJustify.SpaceBetween,
+                    FlexJustify.SpaceAround, FlexJustify.SpaceEvenly
+                }[random.Next(6)],
                 v => n.JustifyContent = v, v => r.JustifyContent = v);
             Set(new[] { FlexAlign.FlexStart, FlexAlign.Center, FlexAlign.FlexEnd, FlexAlign.Stretch }[random.Next(4)],
                 v => n.AlignItems = v, v => r.AlignItems = v);
             Set(new[] { FlexAlign.Auto, FlexAlign.FlexStart, FlexAlign.Center, FlexAlign.Stretch }[random.Next(4)],
                 v => n.AlignSelf = v, v => r.AlignSelf = v);
-            Set(new[] { FlexAlign.FlexStart, FlexAlign.Center, FlexAlign.Stretch, FlexAlign.SpaceBetween }[random.Next(4)],
+            Set(
+                new[] { FlexAlign.FlexStart, FlexAlign.Center, FlexAlign.Stretch, FlexAlign.SpaceBetween }[
+                    random.Next(4)],
                 v => n.AlignContent = v, v => r.AlignContent = v);
             Set((float)random.Next(3), v => n.FlexGrow = v, v => r.FlexGrow = v);
             Set((float)random.Next(2), v => n.FlexShrink = v, v => r.FlexShrink = v);
             if (random.Next(3) == 0)
-            {
                 Set(YogaValue.Point(random.Next(10, 100)), v => n.FlexBasis = v, v => r.FlexBasis = R(v));
-            }
 
             Set(RandomLength(random, true), v => n.Width = v, v => r.Width = R(v));
             Set(RandomLength(random, true), v => n.Height = v, v => r.Height = R(v));
@@ -94,18 +101,23 @@ namespace Yaui.Tests
             for (var edge = 0; edge < 4; edge++)
             {
                 var e = (YogaEdge)edge;
-                Set(YogaValue.Point(random.Next(0, 3) * 5), v => n.SetMargin(e, v), v => r.SetMargin((Ref.YogaEdge)(int)e, R(v)));
-                Set(YogaValue.Point(random.Next(0, 3) * 4), v => n.SetPadding(e, v), v => r.SetPadding((Ref.YogaEdge)(int)e, R(v)));
+                Set(YogaValue.Point(random.Next(0, 3) * 5), v => n.SetMargin(e, v),
+                    v => r.SetMargin((Ref.YogaEdge)(int)e, R(v)));
+                Set(YogaValue.Point(random.Next(0, 3) * 4), v => n.SetPadding(e, v),
+                    v => r.SetPadding((Ref.YogaEdge)(int)e, R(v)));
                 Set((float)random.Next(0, 3), v => n.SetBorder(e, v), v => r.SetBorder((Ref.YogaEdge)(int)e, v));
             }
 
-            Set((float)random.Next(0, 3) * 4, v => n.SetGap(YogaGutter.Column, v), v => r.SetGap(Ref.YogaGutter.Column, v));
+            Set((float)random.Next(0, 3) * 4, v => n.SetGap(YogaGutter.Column, v),
+                v => r.SetGap(Ref.YogaGutter.Column, v));
             Set((float)random.Next(0, 3) * 4, v => n.SetGap(YogaGutter.Row, v), v => r.SetGap(Ref.YogaGutter.Row, v));
             if (depth > 0 && random.Next(8) == 0)
             {
                 Set(FlexPositionType.Absolute, v => n.PositionType = v, v => r.PositionType = v);
-                Set(YogaValue.Point(random.Next(0, 50)), v => n.SetPosition(YogaEdge.Left, v), v => r.SetPosition(Ref.YogaEdge.Left, R(v)));
-                Set(YogaValue.Point(random.Next(0, 50)), v => n.SetPosition(YogaEdge.Top, v), v => r.SetPosition(Ref.YogaEdge.Top, R(v)));
+                Set(YogaValue.Point(random.Next(0, 50)), v => n.SetPosition(YogaEdge.Left, v),
+                    v => r.SetPosition(Ref.YogaEdge.Left, R(v)));
+                Set(YogaValue.Point(random.Next(0, 50)), v => n.SetPosition(YogaEdge.Top, v),
+                    v => r.SetPosition(Ref.YogaEdge.Top, R(v)));
             }
 
             var childCount = depth >= 4 ? 0 : random.Next(0, 5);
@@ -131,7 +143,7 @@ namespace Yaui.Tests
             return pair;
         }
 
-        static void AssertSame(Pair pair, string path)
+        private static void AssertSame(Pair pair, string path)
         {
             var n = pair.Node;
             var r = pair.Reference;
@@ -140,19 +152,13 @@ namespace Yaui.Tests
             Assert.AreEqual(r.LayoutWidth, n.LayoutWidth, 0.01f, path + " width");
             Assert.AreEqual(r.LayoutHeight, n.LayoutHeight, 0.01f, path + " height");
             Assert.AreEqual(r.LayoutPaddingLeft, n.LayoutPaddingLeft, 0.01f, path + " padding");
-            for (var i = 0; i < pair.Children.Count; i++)
-            {
-                AssertSame(pair.Children[i], path + "/" + i);
-            }
+            for (var i = 0; i < pair.Children.Count; i++) AssertSame(pair.Children[i], path + "/" + i);
         }
 
-        static void Collect(Pair pair, List<Pair> all)
+        private static void Collect(Pair pair, List<Pair> all)
         {
             all.Add(pair);
-            foreach (var child in pair.Children)
-            {
-                Collect(child, all);
-            }
+            foreach (var child in pair.Children) Collect(child, all);
         }
 
         [Test]

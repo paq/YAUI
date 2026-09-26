@@ -11,9 +11,9 @@ namespace Yaui.Tests
     /// </summary>
     public class ControlTests
     {
-        readonly List<Object> created = new();
-        YauiPanel panel;
-        EventSystem eventSystem;
+        private readonly List<Object> created = new();
+        private YauiPanel panel;
+        private EventSystem eventSystem;
 
         [SetUp]
         public void SetUp()
@@ -50,25 +50,23 @@ namespace Yaui.Tests
         public void TearDown()
         {
             foreach (var o in created)
-            {
                 if (o != null)
-                {
                     Object.DestroyImmediate(o);
-                }
-            }
 
             created.Clear();
         }
 
-        YauiElement Root => panel.GetComponent<YauiElement>();
+        private YauiElement Root => panel.GetComponent<YauiElement>();
 
-        static T Add<T>(Component parent, float width, float height, string name = null) where T : Component
+        private static T Add<T>(Component parent, float width, float height, string name = null) where T : Component
         {
             var go = new GameObject(name ?? typeof(T).Name);
             go.transform.SetParent(parent.transform, false);
             // Elements are the component itself; other components get a plain element.
             var isElement = typeof(YauiElement).IsAssignableFrom(typeof(T));
-            var element = isElement ? (YauiElement)(Component)go.AddComponent(typeof(T)) : go.AddComponent<YauiElement>();
+            var element = isElement
+                ? (YauiElement)(Component)go.AddComponent(typeof(T))
+                : go.AddComponent<YauiElement>();
             var layout = element.Layout;
             layout.Width = width;
             layout.Height = height;
@@ -81,11 +79,14 @@ namespace Yaui.Tests
         }
 
         /// <summary>A pointer at a canvas position.</summary>
-        PointerEventData Pointer(float x, float y) => new(eventSystem)
+        private PointerEventData Pointer(float x, float y)
         {
-            position = new Vector2(x, 1000f - y),
-            button = PointerEventData.InputButton.Left,
-        };
+            return new PointerEventData(eventSystem)
+            {
+                position = new Vector2(x, 1000f - y),
+                button = PointerEventData.InputButton.Left
+            };
+        }
 
         [Test]
         public void ScreenToLocalFollowsTheLayoutAndTheTransform()
@@ -144,8 +145,8 @@ namespace Yaui.Tests
 
             // The tint reaches the node record.
             YauiPanel.ForceUpdate();
-            var node = Yaui.Core.YauiSystem.Nodes.Gpu.Read(button.Element.NodeSlot);
-            Assert.AreEqual(Yaui.Rendering.GpuPacking.Rgba8(Color.blue), node.Tint);
+            var node = Core.YauiSystem.Nodes.Gpu.Read(button.Element.NodeSlot);
+            Assert.AreEqual(Rendering.GpuPacking.Rgba8(Color.blue), node.Tint);
         }
 
         [Test]
@@ -313,7 +314,7 @@ namespace Yaui.Tests
             Assert.IsNull(a.FindSelectableOnDown());
         }
 
-        YauiInputField CreateInputField(out YauiText text)
+        private YauiInputField CreateInputField(out YauiText text)
         {
             var field = Add<YauiInputField>(Root, 300f, 60f);
             field.Element.ClipChildren = true;
@@ -329,15 +330,15 @@ namespace Yaui.Tests
             return field;
         }
 
-        static void Type(YauiInputField field, string characters)
+        private static void Type(YauiInputField field, string characters)
         {
-            foreach (var c in characters)
-            {
-                field.ProcessKey(new Event { type = EventType.KeyDown, character = c });
-            }
+            foreach (var c in characters) field.ProcessKey(new Event { type = EventType.KeyDown, character = c });
         }
 
-        static bool Key(YauiInputField field, string key) => field.ProcessKey(Event.KeyboardEvent(key));
+        private static bool Key(YauiInputField field, string key)
+        {
+            return field.ProcessKey(Event.KeyboardEvent(key));
+        }
 
         [Test]
         public void InputFieldEditsItsText()
@@ -435,7 +436,7 @@ namespace Yaui.Tests
                 $"text {text.LayoutRect} translate {text.Translate} caret {field.CaretPosition}/{field.Text.Length} rendered {text.RenderedLength}");
         }
 
-        YauiDropdown CreateDropdown(out YauiText caption)
+        private YauiDropdown CreateDropdown(out YauiText caption)
         {
             var spacer = Add<YauiElement>(Root, 100f, 50f, "Spacer");
             spacer.Box = BoxStyle.Default;
@@ -511,7 +512,7 @@ namespace Yaui.Tests
             Assert.AreEqual(0, dropdown.Value);
         }
 
-        GameObject HitAt(float x, float y)
+        private GameObject HitAt(float x, float y)
         {
             var element = panel.CurrentState.HitTestCanvas(new Unity.Mathematics.float2(x, y));
             return element != null ? element.gameObject : null;

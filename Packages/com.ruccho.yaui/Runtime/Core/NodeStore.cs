@@ -46,11 +46,11 @@ namespace Yaui.Core
     /// </summary>
     internal sealed class NodeStore : IDisposable
     {
-        NativeList<NodeCpuData> cpu;
+        private NativeList<NodeCpuData> cpu;
 
         public NodeStore(int capacity)
         {
-            Gpu = new GpuStore<NodeGpuData>(capacity, reserved: 1);
+            Gpu = new GpuStore<NodeGpuData>(capacity, 1);
             cpu = new NativeList<NodeCpuData>(capacity, Allocator.Persistent);
             cpu.Add(default);
         }
@@ -62,26 +62,23 @@ namespace Yaui.Core
         public int Allocate()
         {
             var slot = Gpu.Allocate();
-            while (cpu.Length <= slot)
-            {
-                cpu.Add(default);
-            }
+            while (cpu.Length <= slot) cpu.Add(default);
 
             cpu[slot] = new NodeCpuData { Scale = 1f, Pivot = 0.5f, Opacity = 1f, Tint = GpuPacking.White8 };
             return slot;
         }
 
-        public void Free(int slot) => Gpu.Free(slot);
+        public void Free(int slot)
+        {
+            Gpu.Free(slot);
+        }
 
         public ref NodeCpuData this[int slot] => ref cpu.ElementAt(slot);
 
         public void Dispose()
         {
             Gpu.Dispose();
-            if (cpu.IsCreated)
-            {
-                cpu.Dispose();
-            }
+            if (cpu.IsCreated) cpu.Dispose();
         }
     }
 }

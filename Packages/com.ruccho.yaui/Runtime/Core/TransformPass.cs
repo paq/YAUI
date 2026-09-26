@@ -24,7 +24,8 @@ namespace Yaui.Core
             foreach (var slot in Nodes)
             {
                 var node = Gpu[slot];
-                if (node.Matrix.y != 0f || node.Matrix.z != 0f || (node.Clip > 0 && Clips[(int)node.Clip].Rounded.z > 0f))
+                if (node.Matrix.y != 0f || node.Matrix.z != 0f ||
+                    (node.Clip > 0 && Clips[(int)node.Clip].Rounded.z > 0f))
                 {
                     Result[0] = 1;
                     return;
@@ -66,15 +67,11 @@ namespace Yaui.Core
         public void Execute()
         {
             foreach (var range in Ranges)
-            {
                 for (var i = range.x; i < range.y; i++)
-                {
                     Compute(i);
-                }
-            }
         }
 
-        void Compute(int i)
+        private void Compute(int i)
         {
             {
                 var slot = Nodes[i];
@@ -96,7 +93,7 @@ namespace Yaui.Core
                     Matrix = new float4(world.c0.x, world.c1.x, world.c0.y, world.c1.y),
                     Translation = world.c2,
                     OpacityAndClip = NodeGpuData.PackOpacityAndClip(opacity, parentClip),
-                    Tint = node.Tint,
+                    Tint = node.Tint
                 };
                 GpuStore<NodeGpuData>.MarkDirty(GpuDirty, slot);
 
@@ -134,12 +131,12 @@ namespace Yaui.Core
             }
         }
 
-        static float2x3 Identity => new(1f, 0f, 0f, 0f, 1f, 0f);
+        private static float2x3 Identity => new(1f, 0f, 0f, 0f, 1f, 0f);
 
         /// <summary>
         /// Layout position, then the CSS transform around the pivot: translate, rotate, scale.
         /// </summary>
-        static float2x3 Local(in NodeCpuData node)
+        private static float2x3 Local(in NodeCpuData node)
         {
             math.sincos(node.Rotation, out var s, out var c);
             var linear = new float2x2(c, -s, s, c);
@@ -149,15 +146,18 @@ namespace Yaui.Core
             return new float2x3(linear.c0, linear.c1, translation);
         }
 
-        static float2x3 Mul(float2x3 a, float2x3 b)
+        private static float2x3 Mul(float2x3 a, float2x3 b)
         {
             var linearA = new float2x2(a.c0, a.c1);
             return new float2x3(math.mul(linearA, b.c0), math.mul(linearA, b.c1), math.mul(linearA, b.c2) + a.c2);
         }
 
-        static float2 Transform(float2x3 m, float2 p) => m.c0 * p.x + m.c1 * p.y + m.c2;
+        private static float2 Transform(float2x3 m, float2 p)
+        {
+            return m.c0 * p.x + m.c1 * p.y + m.c2;
+        }
 
-        static float4 Bounds(float2x3 world, float2 size)
+        private static float4 Bounds(float2x3 world, float2 size)
         {
             var p0 = Transform(world, 0f);
             var p1 = Transform(world, new float2(size.x, 0f));
@@ -167,6 +167,9 @@ namespace Yaui.Core
                 math.max(math.max(p0, p1), math.max(p2, p3)));
         }
 
-        static float4 Intersect(float4 a, float4 b) => new(math.max(a.xy, b.xy), math.min(a.zw, b.zw));
+        private static float4 Intersect(float4 a, float4 b)
+        {
+            return new float4(math.max(a.xy, b.xy), math.min(a.zw, b.zw));
+        }
     }
 }

@@ -9,9 +9,9 @@ namespace Yaui
     public class YauiToggleGroup : MonoBehaviour
     {
         /// <summary>Whether clicking the toggle that is on switches it off, leaving none on.</summary>
-        [SerializeField] bool allowSwitchOff;
+        [SerializeField] private bool allowSwitchOff;
 
-        readonly List<YauiToggle> toggles = new();
+        private readonly List<YauiToggle> toggles = new();
 
         public bool AllowSwitchOff
         {
@@ -28,18 +28,17 @@ namespace Yaui
             get
             {
                 foreach (var toggle in toggles)
-                {
                     if (toggle.IsOn)
-                    {
                         return toggle;
-                    }
-                }
 
                 return null;
             }
         }
 
-        public bool AnyTogglesOn() => ActiveToggle != null;
+        public bool AnyTogglesOn()
+        {
+            return ActiveToggle != null;
+        }
 
         /// <summary>Switches every toggle off, even if switching off is not allowed.</summary>
         public void SetAllTogglesOff(bool notify = true)
@@ -47,39 +46,29 @@ namespace Yaui
             var allow = allowSwitchOff;
             allowSwitchOff = true;
             foreach (var toggle in toggles.ToArray())
-            {
                 if (notify)
-                {
                     toggle.IsOn = false;
-                }
                 else
-                {
                     toggle.SetIsOnWithoutNotify(false);
-                }
-            }
 
             allowSwitchOff = allow;
         }
 
         internal void Register(YauiToggle toggle)
         {
-            if (!toggles.Contains(toggle))
-            {
-                toggles.Add(toggle);
-            }
+            if (!toggles.Contains(toggle)) toggles.Add(toggle);
         }
 
-        internal void Unregister(YauiToggle toggle) => toggles.Remove(toggle);
+        internal void Unregister(YauiToggle toggle)
+        {
+            toggles.Remove(toggle);
+        }
 
         internal bool IsOnlyOn(YauiToggle toggle)
         {
             foreach (var other in toggles)
-            {
                 if (other != toggle && other.IsOn)
-                {
                     return false;
-                }
-            }
 
             return true;
         }
@@ -90,12 +79,8 @@ namespace Yaui
             var allow = allowSwitchOff;
             allowSwitchOff = true;
             foreach (var other in toggles.ToArray())
-            {
                 if (other != toggle && other.IsOn)
-                {
                     other.IsOn = false;
-                }
-            }
 
             allowSwitchOff = allow;
         }

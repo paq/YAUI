@@ -39,25 +39,25 @@ namespace Yaui
         }
 
         /// <summary>The list, inactive: an element with the item somewhere inside.</summary>
-        [SerializeField] YauiElement template;
+        [SerializeField] private YauiElement template;
 
         /// <summary>Shows the text of the selected option.</summary>
-        [SerializeField] YauiText captionText;
+        [SerializeField] private YauiText captionText;
 
         /// <summary>Shows the image of the selected option, if any.</summary>
-        [SerializeField] YauiImage captionImage;
+        [SerializeField] private YauiImage captionImage;
 
         /// <summary>The text of the item in the template. The toggle around it is the item.</summary>
-        [SerializeField] YauiText itemText;
+        [SerializeField] private YauiText itemText;
 
-        [SerializeField] YauiImage itemImage;
-        [SerializeField] List<OptionData> options = new();
-        [SerializeField] int value;
-        [SerializeField] DropdownEvent onValueChanged = new();
+        [SerializeField] private YauiImage itemImage;
+        [SerializeField] private List<OptionData> options = new();
+        [SerializeField] private int value;
+        [SerializeField] private DropdownEvent onValueChanged = new();
 
-        [NonSerialized] GameObject list;
-        [NonSerialized] GameObject blocker;
-        [NonSerialized] readonly List<YauiToggle> items = new();
+        [NonSerialized] private GameObject list;
+        [NonSerialized] private GameObject blocker;
+        [NonSerialized] private readonly List<YauiToggle> items = new();
 
         public YauiElement Template
         {
@@ -131,14 +131,14 @@ namespace Yaui
         /// <summary>Whether the list is shown.</summary>
         public bool IsExpanded => list != null;
 
-        public void SetValueWithoutNotify(int input) => Set(input, false);
+        public void SetValueWithoutNotify(int input)
+        {
+            Set(input, false);
+        }
 
         public void AddOptions(IEnumerable<string> texts)
         {
-            foreach (var text in texts)
-            {
-                options.Add(new OptionData(text));
-            }
+            foreach (var text in texts) options.Add(new OptionData(text));
 
             RefreshShownValue();
         }
@@ -171,36 +171,24 @@ namespace Yaui
         protected override void OnValidate()
         {
             base.OnValidate();
-            if (isActiveAndEnabled)
-            {
-                RefreshShownValue();
-            }
+            if (isActiveAndEnabled) RefreshShownValue();
         }
 
-        void Set(int input, bool notify)
+        private void Set(int input, bool notify)
         {
             var clamped = options.Count == 0 ? 0 : Mathf.Clamp(input, 0, options.Count - 1);
-            if (clamped == value)
-            {
-                return;
-            }
+            if (clamped == value) return;
 
             value = clamped;
             RefreshShownValue();
-            if (notify)
-            {
-                onValueChanged.Invoke(value);
-            }
+            if (notify) onValueChanged.Invoke(value);
         }
 
         /// <summary>Shows the selected option in the caption.</summary>
         public void RefreshShownValue()
         {
             var option = value >= 0 && value < options.Count ? options[value] : null;
-            if (captionText != null)
-            {
-                captionText.Text = option?.Text ?? "";
-            }
+            if (captionText != null) captionText.Text = option?.Text ?? "";
 
             if (captionImage != null)
             {
@@ -213,15 +201,18 @@ namespace Yaui
 
         public virtual void OnPointerClick(PointerEventData eventData)
         {
-            if (eventData.button == PointerEventData.InputButton.Left)
-            {
-                Show();
-            }
+            if (eventData.button == PointerEventData.InputButton.Left) Show();
         }
 
-        public virtual void OnSubmit(BaseEventData eventData) => Show();
+        public virtual void OnSubmit(BaseEventData eventData)
+        {
+            Show();
+        }
 
-        public virtual void OnCancel(BaseEventData eventData) => Hide();
+        public virtual void OnCancel(BaseEventData eventData)
+        {
+            Hide();
+        }
 
         #endregion
 
@@ -230,15 +221,10 @@ namespace Yaui
         {
             if (list != null || !IsInteractable || template == null || itemText == null ||
                 !itemText.transform.IsChildOf(template.transform))
-            {
                 return;
-            }
 
             var state = Element.PanelState;
-            if (state == null || state.Panel == null || !state.TryGetWorld(Element, out var world))
-            {
-                return;
-            }
+            if (state == null || state.Panel == null || !state.TryGetWorld(Element, out var world)) return;
 
             var panel = state.Panel;
             var root = panel.Element;
@@ -266,10 +252,7 @@ namespace Yaui
             var bottom = topLeft.y + ((Vector2)world.c1).y * size.y;
             var layout = listElement.Layout;
             layout.Position = PositionType.Absolute;
-            if (layout.Width.Unit == LengthUnit.Auto)
-            {
-                layout.Width = Length.Points(((Vector2)world.c0).x * size.x);
-            }
+            if (layout.Width.Unit == LengthUnit.Auto) layout.Width = Length.Points(((Vector2)world.c0).x * size.x);
 
             var height = layout.Height.Unit == LengthUnit.Point ? layout.Height.Value : 0f;
             var above = height > 0f && bottom + height > panel.CanvasSize.y && topLeft.y - height >= 0f;
@@ -297,10 +280,7 @@ namespace Yaui
                 copy.name = $"Item {i}: {options[i].Text}";
                 var toggle = copy.GetComponent<YauiToggle>();
                 var text = Corresponding(itemTextCopy, itemObject.transform, copy.transform);
-                if (text != null)
-                {
-                    text.Text = options[i].Text;
-                }
+                if (text != null) text.Text = options[i].Text;
 
                 if (itemImageCopy != null)
                 {
@@ -325,14 +305,12 @@ namespace Yaui
 
             // The keys move through the items, in order.
             for (var i = 0; i < items.Count; i++)
-            {
                 items[i].Navigation = new SelectableNavigation
                 {
                     Mode = NavigationMode.Explicit,
                     Up = i > 0 ? items[i - 1] : null,
-                    Down = i + 1 < items.Count ? items[i + 1] : null,
+                    Down = i + 1 < items.Count ? items[i + 1] : null
                 };
-            }
 
             list.SetActive(true);
             if (value < items.Count)
@@ -340,10 +318,7 @@ namespace Yaui
                 var selected = items[value];
                 EventSystem.current?.SetSelectedGameObject(selected.gameObject);
                 var scrollView = list.GetComponentInChildren<YauiScrollView>();
-                if (scrollView != null)
-                {
-                    Tickers.Add(new ScrollWhenLaidOut(scrollView, selected.Element));
-                }
+                if (scrollView != null) Tickers.Add(new ScrollWhenLaidOut(scrollView, selected.Element));
             }
         }
 
@@ -357,19 +332,16 @@ namespace Yaui
             blocker = null;
         }
 
-        void OnItemSelected(int index)
+        private void OnItemSelected(int index)
         {
             Value = index;
             Hide();
             Select();
         }
 
-        static void DestroyObject(GameObject go)
+        private static void DestroyObject(GameObject go)
         {
-            if (go == null)
-            {
-                return;
-            }
+            if (go == null) return;
 
             if (Application.isPlaying)
             {
@@ -384,15 +356,12 @@ namespace Yaui
         }
 
         /// <summary>The component at the same place in a copy of a hierarchy.</summary>
-        static T Corresponding<T>(T original, Transform originalRoot, Transform copyRoot) where T : Component
+        private static T Corresponding<T>(T original, Transform originalRoot, Transform copyRoot) where T : Component
         {
             var path = new List<int>();
             for (var t = original.transform; t != originalRoot; t = t.parent)
             {
-                if (t == null)
-                {
-                    return null;
-                }
+                if (t == null) return null;
 
                 path.Add(t.GetSiblingIndex());
             }
@@ -400,10 +369,7 @@ namespace Yaui
             var current = copyRoot;
             for (var i = path.Count - 1; i >= 0; i--)
             {
-                if (path[i] >= current.childCount)
-                {
-                    return null;
-                }
+                if (path[i] >= current.childCount) return null;
 
                 current = current.GetChild(path[i]);
             }
@@ -412,11 +378,11 @@ namespace Yaui
         }
 
         /// <summary>Scrolls the list to the selected item once it is laid out.</summary>
-        sealed class ScrollWhenLaidOut : ITicker
+        private sealed class ScrollWhenLaidOut : ITicker
         {
-            readonly YauiScrollView view;
-            readonly YauiElement target;
-            int frames;
+            private readonly YauiScrollView view;
+            private readonly YauiElement target;
+            private int frames;
 
             public ScrollWhenLaidOut(YauiScrollView view, YauiElement target)
             {
@@ -426,15 +392,9 @@ namespace Yaui
 
             public bool Tick(float time)
             {
-                if (view == null || target == null || ++frames > 10)
-                {
-                    return false;
-                }
+                if (view == null || target == null || ++frames > 10) return false;
 
-                if (target.LayoutRect.height <= 0f)
-                {
-                    return true;
-                }
+                if (target.LayoutRect.height <= 0f) return true;
 
                 view.ScrollIntoView(target);
                 return false;

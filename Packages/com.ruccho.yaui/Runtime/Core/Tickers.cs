@@ -16,46 +16,39 @@ namespace Yaui.Core
     /// </summary>
     internal static class Tickers
     {
-        static readonly List<ITicker> Running = new();
-        static readonly List<ITicker> Buffer = new();
+        private static readonly List<ITicker> Running = new();
+        private static readonly List<ITicker> Buffer = new();
 
         public static void Add(ITicker ticker)
         {
-            if (!Running.Contains(ticker))
-            {
-                Running.Add(ticker);
-            }
+            if (!Running.Contains(ticker)) Running.Add(ticker);
 
             YauiSystem.RequestUpdate();
         }
 
-        public static void Remove(ITicker ticker) => Running.Remove(ticker);
+        public static void Remove(ITicker ticker)
+        {
+            Running.Remove(ticker);
+        }
 
         public static void Tick()
         {
-            if (Running.Count == 0)
-            {
-                return;
-            }
+            if (Running.Count == 0) return;
 
             // Tickers may add or remove others.
             Buffer.Clear();
             Buffer.AddRange(Running);
             var time = Time.realtimeSinceStartup;
             foreach (var ticker in Buffer)
-            {
                 if (!ticker.Tick(time))
-                {
                     Running.Remove(ticker);
-                }
-            }
 
-            if (Running.Count > 0)
-            {
-                YauiSystem.RequestUpdate();
-            }
+            if (Running.Count > 0) YauiSystem.RequestUpdate();
         }
 
-        public static void Clear() => Running.Clear();
+        public static void Clear()
+        {
+            Running.Clear();
+        }
     }
 }

@@ -19,9 +19,9 @@ namespace Yaui
     public sealed class YauiMask : MonoBehaviour
     {
         /// <summary>Whether the element itself (its box, image or text) is drawn, or only used as the mask.</summary>
-        [SerializeField] bool showMaskGraphic = true;
+        [SerializeField] private bool showMaskGraphic = true;
 
-        YauiElement element;
+        private YauiElement element;
 
         public bool ShowMaskGraphic
         {
@@ -33,24 +33,21 @@ namespace Yaui
             }
         }
 
-        YauiElement Element => element != null ? element : element = GetComponent<YauiElement>();
+        private YauiElement Element => element != null ? element : element = GetComponent<YauiElement>();
 
-        void OnEnable() => Element.SetMask(this);
-
-        void OnDisable()
+        private void OnEnable()
         {
-            if (element != null)
-            {
-                element.SetMask(null);
-            }
+            Element.SetMask(this);
         }
 
-        void OnValidate()
+        private void OnDisable()
         {
-            if (isActiveAndEnabled)
-            {
-                Element.OnMaskChanged();
-            }
+            if (element != null) element.SetMask(null);
+        }
+
+        private void OnValidate()
+        {
+            if (isActiveAndEnabled) Element.OnMaskChanged();
         }
     }
 }

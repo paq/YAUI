@@ -15,10 +15,7 @@ namespace Yaui
 
         public void OnPointerClick(PointerEventData eventData)
         {
-            if (Dropdown != null)
-            {
-                Dropdown.Hide();
-            }
+            if (Dropdown != null) Dropdown.Hide();
         }
     }
 }

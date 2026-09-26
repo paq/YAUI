@@ -11,7 +11,7 @@ namespace Yaui.Text
     {
         public const string ResourcePath = "Yaui/TextData";
 
-        [SerializeField] TextAsset icuData;
+        [SerializeField] private TextAsset icuData;
 
         public TextAsset IcuData
         {

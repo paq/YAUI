@@ -33,14 +33,14 @@ Shader "Hidden/Yaui/AtlasBlit"
 
             Varyings Vert(uint vertexId : SV_VertexID)
             {
-                static const uint corners[6] = { 0, 1, 2, 2, 1, 3 };
+                static const uint corners[6] = {0, 1, 2, 2, 1, 3};
                 uint corner = corners[vertexId];
                 float2 t = float2(corner & 1u, corner >> 1);
                 float2 pageUv = lerp(_YauiAtlasDestinationRect.xy, _YauiAtlasDestinationRect.zw, t);
                 float2 clip = pageUv * 2.0 - 1.0;
-            #if UNITY_UV_STARTS_AT_TOP
+                #if UNITY_UV_STARTS_AT_TOP
                 clip.y = -clip.y;
-            #endif
+                #endif
                 Varyings o;
                 o.positionCS = float4(clip, 0.0, 1.0);
                 o.pageUv = pageUv;
@@ -49,10 +49,12 @@ Shader "Hidden/Yaui/AtlasBlit"
 
             float4 Frag(Varyings i) : SV_Target
             {
-                float2 t = saturate((i.pageUv - _YauiAtlasInnerRect.xy) / (_YauiAtlasInnerRect.zw - _YauiAtlasInnerRect.xy));
+                float2 t = saturate(
+                    (i.pageUv - _YauiAtlasInnerRect.xy) / (_YauiAtlasInnerRect.zw - _YauiAtlasInnerRect.xy));
                 float2 halfTexel = _YauiAtlasSource_TexelSize.xy * 0.5;
                 float2 uv = clamp(lerp(_YauiAtlasSourceRect.xy, _YauiAtlasSourceRect.zw, t),
-                    _YauiAtlasSourceRect.xy + halfTexel, _YauiAtlasSourceRect.zw - halfTexel);
+                                                             _YauiAtlasSourceRect.xy + halfTexel,
+                                                             _YauiAtlasSourceRect.zw - halfTexel);
                 return SAMPLE_TEXTURE2D_LOD(_YauiAtlasSource, sampler_YauiAtlasSource, uv, 0);
             }
             ENDHLSL

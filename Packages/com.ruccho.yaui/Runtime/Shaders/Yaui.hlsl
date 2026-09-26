@@ -117,14 +117,14 @@ struct Varyings
     nointerpolation float4 shadow : TEXCOORD6;
     // xy: canvas position (for per-pixel clips), z: local units per screen pixel (overlay), w: per-pixel clip.
     float4 canvasMisc : TEXCOORD7;
-#if defined(YAUI_PIXEL_CLIP)
+    #if defined(YAUI_PIXEL_CLIP)
     // Per-pixel clip (rotated quads, rounded clips): rect (min, max), rounded (center, half size), radii.
     // Only with YAUI_PIXEL_CLIP (a keyword of Uber.shader, enabled for panels that need it): the varyings cost
     // about a quarter of the GPU time of a typical screen on mobile.
     nointerpolation float4 clipRect : TEXCOORD8;
     nointerpolation float4 clipRounded : TEXCOORD9;
     nointerpolation float4 clipRadii : TEXCOORD10;
-#endif
+    #endif
 };
 
 float2 UnpackHalf2(uint v)
@@ -241,16 +241,16 @@ Varyings VertImpl(uint vertexId, bool world)
     o.radii = radii;
     // uvRect: UV at the min corner (xy) and at the max corner (zw) of the rect.
     o.params = float4(max(max(radii.x, radii.y), max(radii.z, radii.w)), flags, widthAndSkew.x,
-        abs(uvRect.z - uvRect.x) * _YauiAtlasParams[slot].x / max(rect.z, 1e-4));
+                      abs(uvRect.z - uvRect.x) * _YauiAtlasParams[slot].x / max(rect.z, 1e-4));
     o.borderColor = borderColor;
     o.shadowColor = shadowColor;
     o.shadow = shadow;
     o.canvasMisc = float4(canvasPosition, localPixelSize, (!axisAligned || clip.rounded.z > 0.0) ? 1.0 : 0.0);
-#if defined(YAUI_PIXEL_CLIP)
+    #if defined(YAUI_PIXEL_CLIP)
     o.clipRect = clipRect;
     o.clipRounded = clip.rounded;
     o.clipRadii = clip.roundedRadii;
-#endif
+    #endif
     return o;
 }
 
@@ -335,7 +335,7 @@ float4 Premultiply(float4 c)
 }
 
 float4 ShadeShape(float2 local, float2 halfSize, float4 color, float radius, uint flags,
-    float borderWidth, float4 borderColor, float4 shadowColor, float4 shadow, float pixelSize)
+                  float borderWidth, float4 borderColor, float4 shadowColor, float4 shadow, float pixelSize)
 {
     float distance = RoundedBoxDistance(local, halfSize, radius);
     float outer = Coverage(distance, pixelSize);
@@ -371,7 +371,7 @@ half4 FragImpl(Varyings i, bool world)
     float4 color = i.color;
 
     float clipCoverage = 1.0;
-#if defined(YAUI_PIXEL_CLIP)
+    #if defined(YAUI_PIXEL_CLIP)
     // Clips the vertex shader cannot apply (rotated quads, rounded clips), in canvas space.
     [branch] if (i.canvasMisc.w > 0.0)
     {
@@ -392,7 +392,7 @@ half4 FragImpl(Varyings i, bool world)
         }
     }
 
-#endif
+    #endif
 
     if (flags & YAUI_FLAG_TEXT)
     {
@@ -458,11 +458,12 @@ half4 FragImpl(Varyings i, bool world)
     {
         float radius = min(CornerRadius(local, i.radii), min(halfSize.x, halfSize.y));
         result = ShadeShape(local, halfSize, color, radius, flags, borderWidth, i.borderColor,
-            i.shadowColor, i.shadow, pixelSize);
+                            i.shadowColor, i.shadow, pixelSize);
     }
 
     return half4(result * clipCoverage);
 }
+
 // The shape of a mask (YauiMask) into the stencil: the coverage of the box (or the alpha of the image), without
 // its color, border and shadow, thresholded at a half.
 half4 FragMaskImpl(Varyings i, bool world)

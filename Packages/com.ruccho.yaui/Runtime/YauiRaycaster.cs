@@ -17,9 +17,9 @@ namespace Yaui
     [AddComponentMenu("YAUI/Raycaster")]
     public sealed class YauiRaycaster : BaseRaycaster
     {
-        static readonly List<(YauiElement, int)> Hits = new();
+        private static readonly List<(YauiElement, int)> Hits = new();
 
-        YauiPanel panel;
+        private YauiPanel panel;
 
         /// <summary>Overlay panels are not seen through a camera; world space panels are.</summary>
         public override Camera eventCamera =>
@@ -32,25 +32,19 @@ namespace Yaui
         public override int renderOrderPriority =>
             Panel != null && Panel.RenderMode == PanelRenderMode.Overlay ? int.MaxValue : int.MinValue;
 
-        YauiPanel Panel => panel != null ? panel : panel = GetComponent<YauiPanel>();
+        private YauiPanel Panel => panel != null ? panel : panel = GetComponent<YauiPanel>();
 
         public override void Raycast(PointerEventData eventData, List<RaycastResult> resultAppendList)
         {
             var state = Panel != null ? Panel.CurrentState : null;
-            if (state == null)
-            {
-                return;
-            }
+            if (state == null) return;
 
-            if (!Panel.TryScreenToCanvas(eventData.position, out var canvas, out var distance, out var worldPosition))
-            {
-                return;
-            }
+            if (!Panel.TryScreenToCanvas(eventData.position, out var canvas, out var distance,
+                    out var worldPosition)) return;
 
             Hits.Clear();
             state.HitTestCanvasAll(canvas, Hits);
             foreach (var (element, depth) in Hits)
-            {
                 resultAppendList.Add(new RaycastResult
                 {
                     gameObject = element.gameObject,
@@ -61,9 +55,8 @@ namespace Yaui
                     screenPosition = eventData.position,
                     index = resultAppendList.Count,
                     depth = depth,
-                    sortingOrder = Panel.RenderMode == PanelRenderMode.Overlay ? Panel.SortOrder : 0,
+                    sortingOrder = Panel.RenderMode == PanelRenderMode.Overlay ? Panel.SortOrder : 0
                 });
-            }
         }
     }
 }

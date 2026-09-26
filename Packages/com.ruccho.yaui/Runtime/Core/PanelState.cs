@@ -18,7 +18,7 @@ namespace Yaui.Core
         MaskPush,
 
         /// <summary>A mask's shape decrementing the stencil from <see cref="DrawSegment.StencilDepth"/> back.</summary>
-        MaskPop,
+        MaskPop
     }
 
     /// <summary>A run of the draw order drawn in one draw call.</summary>
@@ -55,42 +55,43 @@ namespace Yaui.Core
         /// <summary>Elements whose layout style changed since the last submission.</summary>
         public readonly List<YauiElement> LayoutDirtyElements = new();
 
-        NativeList<int> nodes;
-        NativeList<int> parents;
+        private NativeList<int> nodes;
+        private NativeList<int> parents;
 
         // End (exclusive) of the subtree of each depth-first index.
-        NativeList<int> subtreeEnd;
+        private NativeList<int> subtreeEnd;
 
         // Depth-first indices whose subtrees need their transforms propagated again, unless all do.
-        NativeList<int> dirtyNodes;
-        NativeList<int2> transformRanges;
-        bool allTransformsDirty = true;
-        bool hitTestDirty;
-        NativeList<uint> order;
-        GraphicsBuffer orderBuffer;
+        private NativeList<int> dirtyNodes;
+        private NativeList<int2> transformRanges;
+        private bool allTransformsDirty = true;
+        private bool hitTestDirty;
+        private NativeList<uint> order;
+        private GraphicsBuffer orderBuffer;
 
         // Scratch of the transform pass, per depth-first index.
-        NativeList<float2x3> world;
-        NativeList<float> opacity;
-        NativeList<int> clipSlot;
-        NativeList<float4> clipRect;
+        private NativeList<float2x3> world;
+        private NativeList<float> opacity;
+        private NativeList<int> clipSlot;
+        private NativeList<float4> clipRect;
 
-        readonly List<YauiElement> childBuffer = new();
+        private readonly List<YauiElement> childBuffer = new();
 
         // The elements of the last hit test grid, by depth-first index.
-        readonly HitTestGrid hitTest = new();
-        readonly List<YauiElement> hitElements = new();
-        readonly List<YogaNode> yogaChildBuffer = new();
+        private readonly HitTestGrid hitTest = new();
+        private readonly List<YauiElement> hitElements = new();
+        private readonly List<YogaNode> yogaChildBuffer = new();
 
         public bool StructureDirty = true;
 
         /// <summary>A node is rotated or under a rounded clip: draw with per-pixel clipping.</summary>
         public bool NeedsPixelClip;
 
-        NativeArray<int> scanResult;
+        private NativeArray<int> scanResult;
 
         /// <summary>The primitives of an element changed (e.g. a text needs more glyph slots).</summary>
         public bool OrderDirty;
+
         public bool TransformDirty = true;
 
         /// <summary>Set at submission when the layout job includes this panel; cleared when the results are applied.</summary>
@@ -107,15 +108,15 @@ namespace Yaui.Core
 
         public float2 CanvasSize;
         public float ScaleFactor = 1f;
-        float2 laidOutSize = -1f;
-        YogaNode layoutRoot;
+        private float2 laidOutSize = -1f;
+        private YogaNode layoutRoot;
 
         // Layout boundaries dirtied by their content since the last layout. Written at submission only.
-        readonly List<YogaNode> dirtyBoundaries = new();
-        Action<YogaNode> onBoundaryDirtied;
+        private readonly List<YogaNode> dirtyBoundaries = new();
+        private Action<YogaNode> onBoundaryDirtied;
 
         // Texts whose content changed; whether their size did is resolved in the layout job, after generation.
-        readonly List<YauiText> pendingMeasures = new();
+        private readonly List<YauiText> pendingMeasures = new();
 
         public PanelState(YauiPanel panel)
         {
@@ -157,13 +158,9 @@ namespace Yaui.Core
             TransformDirty = true;
             if (!StructureDirty && element.DfsIndex >= 0 && element.DfsIndex < nodes.Length &&
                 Elements[element.DfsIndex] == element)
-            {
                 dirtyNodes.Add(element.DfsIndex);
-            }
             else
-            {
                 allTransformsDirty = true;
-            }
 
             YauiSystem.RequestUpdate();
         }
@@ -191,18 +188,12 @@ namespace Yaui.Core
         public void RebuildStructure()
         {
             // Queries until the next collection see the last rendered state.
-            if (hitTestDirty)
-            {
-                BuildHitTest();
-            }
+            if (hitTestDirty) BuildHitTest();
 
             StructureDirty = false;
             TransformDirty = true;
             allTransformsDirty = true;
-            foreach (var element in Elements)
-            {
-                element.DfsIndex = -1;
-            }
+            foreach (var element in Elements) element.DfsIndex = -1;
 
             Elements.Clear();
             nodes.Clear();
@@ -210,10 +201,7 @@ namespace Yaui.Core
             subtreeEnd.Clear();
 
             var root = Root;
-            if (root != null && root.IsRegisteredTo(this))
-            {
-                Visit(root, -1);
-            }
+            if (root != null && root.IsRegisteredTo(this)) Visit(root, -1);
 
             RebuildOrder();
         }
@@ -221,10 +209,10 @@ namespace Yaui.Core
         /// <summary>Whether the draw order contains masks (the overlay then needs a stencil buffer).</summary>
         public bool HasMasks { get; private set; }
 
-        readonly List<int> maskStack = new();
-        Material segmentMaterial;
-        int segmentStart;
-        int stencilDepth;
+        private readonly List<int> maskStack = new();
+        private Material segmentMaterial;
+        private int segmentStart;
+        private int stencilDepth;
 
         /// <summary>
         /// Main thread: rebuilds the draw order buffer from the elements, split into draw calls where the material
@@ -246,16 +234,10 @@ namespace Yaui.Core
             for (var i = 0; i < Elements.Count; i++)
             {
                 // Masks whose subtree ended.
-                while (maskStack.Count > 0 && i >= subtreeEnd[maskStack[^1]])
-                {
-                    PopMask();
-                }
+                while (maskStack.Count > 0 && i >= subtreeEnd[maskStack[^1]]) PopMask();
 
                 var element = Elements[i];
-                if (!element.IsRegisteredTo(this))
-                {
-                    continue;
-                }
+                if (!element.IsRegisteredTo(this)) continue;
 
                 var mask = element.Mask;
                 if (mask == null || mask.ShowMaskGraphic)
@@ -282,21 +264,15 @@ namespace Yaui.Core
                 }
             }
 
-            while (maskStack.Count > 0)
-            {
-                PopMask();
-            }
+            while (maskStack.Count > 0) PopMask();
 
             FlushDraw();
-            while (SegmentProperties.Count < Segments.Count)
-            {
-                SegmentProperties.Add(new MaterialPropertyBlock());
-            }
+            while (SegmentProperties.Count < Segments.Count) SegmentProperties.Add(new MaterialPropertyBlock());
 
             UploadOrder();
         }
 
-        void PopMask()
+        private void PopMask()
         {
             FlushDraw();
             var element = Elements[maskStack[^1]];
@@ -305,74 +281,64 @@ namespace Yaui.Core
             stencilDepth--;
         }
 
-        void AddShape(YauiElement element, SegmentKind kind)
+        private void AddShape(YauiElement element, SegmentKind kind)
         {
             var start = order.Length;
             element.AppendMaskShape(order);
-            for (var i = start; i < order.Length; i++)
-            {
-                AddTexture(TextureOf(i));
-            }
+            for (var i = start; i < order.Length; i++) AddTexture(TextureOf(i));
 
             Segments.Add(new DrawSegment
             {
                 Start = start, Count = order.Length - start, Kind = kind, StencilDepth = stencilDepth,
-                TextureStart = textureStart, TextureCount = SegmentTextures.Count - textureStart,
+                TextureStart = textureStart, TextureCount = SegmentTextures.Count - textureStart
             });
             segmentStart = order.Length;
             textureStart = SegmentTextures.Count;
         }
 
-        void FlushDraw() => FlushDraw(order.Length);
+        private void FlushDraw()
+        {
+            FlushDraw(order.Length);
+        }
 
         /// <summary>Ends the current draw segment before the draw position <paramref name="end"/>.</summary>
-        void FlushDraw(int end)
+        private void FlushDraw(int end)
         {
             if (end > segmentStart)
-            {
                 Segments.Add(new DrawSegment
                 {
                     Start = segmentStart, Count = end - segmentStart, Material = segmentMaterial,
                     Kind = SegmentKind.Draw, StencilDepth = stencilDepth,
-                    TextureStart = textureStart, TextureCount = SegmentTextures.Count - textureStart,
+                    TextureStart = textureStart, TextureCount = SegmentTextures.Count - textureStart
                 });
-            }
 
             segmentStart = end;
             textureStart = SegmentTextures.Count;
         }
 
-        int textureStart;
+        private int textureStart;
 
-        int TextureOf(int drawPosition) =>
-            PrimitiveTexture.IdOf(YauiSystem.Primitives.Read((int)order[drawPosition]).Flags);
-
-        bool AddTexture(int id)
+        private int TextureOf(int drawPosition)
         {
-            if (id == 0)
-            {
-                return true;
-            }
+            return PrimitiveTexture.IdOf(YauiSystem.Primitives.Read((int)order[drawPosition]).Flags);
+        }
+
+        private bool AddTexture(int id)
+        {
+            if (id == 0) return true;
 
             for (var i = textureStart; i < SegmentTextures.Count; i++)
-            {
                 if (SegmentTextures[i] == id)
-                {
                     return true;
-                }
-            }
 
-            if (SegmentTextures.Count - textureStart >= TextureRegistry.SlotCount)
-            {
-                return false;
-            }
+            if (SegmentTextures.Count - textureStart >= TextureRegistry.SlotCount) return false;
 
             SegmentTextures.Add(id);
             return true;
         }
 
         /// <summary>Splits the draw where the primitives appended from <paramref name="from"/> need a ninth texture.</summary>
-        void SplitByTextures(int from)
+        private void SplitByTextures(int from)
         {
             for (var i = from; i < order.Length; i++)
             {
@@ -385,7 +351,7 @@ namespace Yaui.Core
             }
         }
 
-        void Visit(YauiElement element, int parent)
+        private void Visit(YauiElement element, int parent)
         {
             var index = Elements.Count;
             element.DfsIndex = index;
@@ -397,18 +363,11 @@ namespace Yaui.Core
             // Children are collected before recursing, since the buffer is shared. Only elements whose children
             // changed read the Transform hierarchy; the others reuse their cached children.
             var start = childBuffer.Count;
-            if (element.ChildrenDirty)
-            {
-                element.RefreshChildren();
-            }
+            if (element.ChildrenDirty) element.RefreshChildren();
 
             foreach (var child in element.CachedChildren)
-            {
                 if (child != null && child.IsRegisteredTo(this))
-                {
                     childBuffer.Add(child);
-                }
-            }
 
             var end = childBuffer.Count;
             if (!element.AcceptsChildren)
@@ -418,38 +377,26 @@ namespace Yaui.Core
             }
 
             SyncYogaChildren(element.Yoga, start, end);
-            for (var i = start; i < end; i++)
-            {
-                Visit(childBuffer[i], index);
-            }
+            for (var i = start; i < end; i++) Visit(childBuffer[i], index);
 
             subtreeEnd[index] = Elements.Count;
             childBuffer.RemoveRange(start, end - start);
         }
 
         /// <summary>Makes the Yoga children match, touching the tree only if they differ (to keep its caches).</summary>
-        void SyncYogaChildren(YogaNode yoga, int start, int end)
+        private void SyncYogaChildren(YogaNode yoga, int start, int end)
         {
             var count = end - start;
             var same = yoga.ChildCount == count;
-            for (var i = 0; same && i < count; i++)
-            {
-                same = yoga.GetChild(i) == childBuffer[start + i].Yoga;
-            }
+            for (var i = 0; same && i < count; i++) same = yoga.GetChild(i) == childBuffer[start + i].Yoga;
 
-            if (same)
-            {
-                return;
-            }
+            if (same) return;
 
             yoga.ClearChildren();
             for (var i = 0; i < count; i++)
             {
                 var child = childBuffer[start + i].Yoga;
-                if (!child.Owner.IsNull)
-                {
-                    child.Owner.RemoveChild(child);
-                }
+                if (!child.Owner.IsNull) child.Owner.RemoveChild(child);
                 yoga.InsertChild(child, i);
             }
         }
@@ -460,27 +407,18 @@ namespace Yaui.Core
             foreach (var element in LayoutDirtyElements)
             {
                 element.LayoutDirty = false;
-                if (element.IsRegisteredTo(this))
-                {
-                    element.PrepareLayout();
-                }
+                if (element.IsRegisteredTo(this)) element.PrepareLayout();
             }
 
             LayoutDirtyElements.Clear();
 
             var root = Root;
-            if (root == null || !root.IsRegisteredTo(this))
-            {
-                return false;
-            }
+            if (root == null || !root.IsRegisteredTo(this)) return false;
 
             var yoga = root.Yoga;
             if (layoutRoot != yoga)
             {
-                if (!layoutRoot.IsNull)
-                {
-                    layoutRoot.SetBoundaryDirtied(null);
-                }
+                if (!layoutRoot.IsNull) layoutRoot.SetBoundaryDirtied(null);
 
                 layoutRoot = yoga;
                 layoutRoot.SetBoundaryDirtied(onBoundaryDirtied ??= dirtyBoundaries.Add);
@@ -499,11 +437,17 @@ namespace Yaui.Core
         }
 
         /// <summary>Main thread, at submission: a text changed; its measurement is resolved in the layout job.</summary>
-        public void AddPendingMeasure(YauiText text) => pendingMeasures.Add(text);
+        public void AddPendingMeasure(YauiText text)
+        {
+            pendingMeasures.Add(text);
+        }
 
 
         /// <summary>Main thread: makes the next preparation set the size of the root again.</summary>
-        public void ResetRootSize() => laidOutSize = -1f;
+        public void ResetRootSize()
+        {
+            laidOutSize = -1f;
+        }
 
         /// <summary>Any thread: runs the layout. Touches only Yoga nodes, never Unity objects.</summary>
         /// <summary>
@@ -512,21 +456,15 @@ namespace Yaui.Core
         /// </summary>
         public void ResolveMeasures(NativeList<IntPtr> boundaries)
         {
-            foreach (var text in pendingMeasures)
-            {
-                text.ResolveMeasure();
-            }
+            foreach (var text in pendingMeasures) text.ResolveMeasure();
 
-            foreach (var boundary in dirtyBoundaries)
-            {
-                boundaries.Add(boundary.Pointer);
-            }
+            foreach (var boundary in dirtyBoundaries) boundaries.Add(boundary.Pointer);
         }
 
         /// <summary>Main thread, at submission: the tree for the layout jobs.</summary>
         public RootLayout RootLayout => new()
         {
-            Root = layoutRoot.Pointer, Width = CanvasSize.x, Height = CanvasSize.y,
+            Root = layoutRoot.Pointer, Width = CanvasSize.x, Height = CanvasSize.y
         };
 
         /// <summary>Main thread, at collection: copies the new layout into the nodes and the boxes.</summary>
@@ -539,10 +477,7 @@ namespace Yaui.Core
             foreach (var element in Elements)
             {
                 var yoga = element.Yoga;
-                if (!yoga.HasNewLayout || !element.IsRegisteredTo(this))
-                {
-                    continue;
-                }
+                if (!yoga.HasNewLayout || !element.IsRegisteredTo(this)) continue;
 
                 yoga.HasNewLayout = false;
                 ref var node = ref store[element.NodeSlot];
@@ -562,10 +497,7 @@ namespace Yaui.Core
         /// <summary>Main thread, at collection: propagates transforms if anything changed.</summary>
         public void UpdateTransforms()
         {
-            if (!TransformDirty || nodes.Length == 0)
-            {
-                return;
-            }
+            if (!TransformDirty || nodes.Length == 0) return;
 
             TransformDirty = false;
             var count = nodes.Length;
@@ -581,13 +513,11 @@ namespace Yaui.Core
                 dirtyNodes.Sort();
                 var coveredEnd = -1;
                 foreach (var index in dirtyNodes)
-                {
                     if (index >= coveredEnd)
                     {
                         coveredEnd = subtreeEnd[index];
                         transformRanges.Add(new int2(index, coveredEnd));
                     }
-                }
             }
 
             allTransformsDirty = false;
@@ -612,34 +542,28 @@ namespace Yaui.Core
                 World = world.AsArray(),
                 Opacity = opacity.AsArray(),
                 ClipSlot = clipSlot.AsArray(),
-                ClipRect = clipRect.AsArray(),
+                ClipRect = clipRect.AsArray()
             }.Run();
 
             // Built when queried: without a pointer, moving elements costs nothing for hit testing.
             hitTestDirty = true;
 
-            if (!scanResult.IsCreated)
-            {
-                scanResult = new NativeArray<int>(1, Allocator.Persistent);
-            }
+            if (!scanResult.IsCreated) scanResult = new NativeArray<int>(1, Allocator.Persistent);
 
             new PixelClipScan
             {
                 Nodes = nodes.AsArray(),
                 Gpu = nodeStore.Gpu.AsArray(),
                 Clips = clipStore.AsArray(),
-                Result = scanResult,
+                Result = scanResult
             }.Run();
             NeedsPixelClip = scanResult[0] != 0;
         }
 
-        void BuildHitTest()
+        private void BuildHitTest()
         {
             hitTestDirty = false;
-            if (world.Length != nodes.Length)
-            {
-                return;
-            }
+            if (world.Length != nodes.Length) return;
 
             hitTest.Build(nodes.AsArray(), parents.AsArray(), YauiSystem.Nodes.Cpu, world.AsArray(),
                 clipRect.AsArray(), CanvasSize);
@@ -663,18 +587,11 @@ namespace Yaui.Core
         /// </summary>
         public void HitTestCanvasAll(float2 point, List<(YauiElement Element, int Depth)> output)
         {
-            if (hitTestDirty)
-            {
-                BuildHitTest();
-            }
+            if (hitTestDirty) BuildHitTest();
 
             foreach (var index in hitTest.QueryAll(point))
-            {
                 if (index < hitElements.Count && hitElements[index] != null && hitElements[index].IsRegisteredTo(this))
-                {
                     output.Add((hitElements[index], index));
-                }
-            }
         }
 
         /// <summary>
@@ -685,17 +602,11 @@ namespace Yaui.Core
         {
             local = default;
             var index = element.DfsIndex;
-            if (!element.IsRegisteredTo(this) || index < 0 || index >= world.Length)
-            {
-                return false;
-            }
+            if (!element.IsRegisteredTo(this) || index < 0 || index >= world.Length) return false;
 
             var m = world[index];
             var linear = new float2x2(m.c0, m.c1);
-            if (math.abs(math.determinant(linear)) < 1e-12f)
-            {
-                return false;
-            }
+            if (math.abs(math.determinant(linear)) < 1e-12f) return false;
 
             local = math.mul(math.inverse(linear), canvas - m.c2);
             return true;
@@ -706,10 +617,7 @@ namespace Yaui.Core
         {
             matrix = default;
             var index = element.DfsIndex;
-            if (!element.IsRegisteredTo(this) || index < 0 || index >= world.Length)
-            {
-                return false;
-            }
+            if (!element.IsRegisteredTo(this) || index < 0 || index >= world.Length) return false;
 
             matrix = world[index];
             return true;
@@ -718,10 +626,7 @@ namespace Yaui.Core
         /// <summary>Main thread: the topmost hittable element at a point in canvas space, as last rendered, or null.</summary>
         public YauiElement HitTestCanvas(float2 point)
         {
-            if (hitTestDirty)
-            {
-                BuildHitTest();
-            }
+            if (hitTestDirty) BuildHitTest();
 
             var index = hitTest.Query(point);
             return index >= 0 && index < hitElements.Count && hitElements[index] != null &&
@@ -730,7 +635,7 @@ namespace Yaui.Core
                 : null;
         }
 
-        void UploadOrder()
+        private void UploadOrder()
         {
             var count = Math.Max(order.Length, 1);
             if (orderBuffer == null || orderBuffer.count < count)
@@ -740,19 +645,13 @@ namespace Yaui.Core
                     sizeof(uint));
             }
 
-            if (order.Length > 0)
-            {
-                orderBuffer.SetData(order.AsArray());
-            }
+            if (order.Length > 0) orderBuffer.SetData(order.AsArray());
         }
 
         public void Dispose()
         {
             hitTest.Dispose();
-            if (scanResult.IsCreated)
-            {
-                scanResult.Dispose();
-            }
+            if (scanResult.IsCreated) scanResult.Dispose();
 
             orderBuffer?.Dispose();
             orderBuffer = null;

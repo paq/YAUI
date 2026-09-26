@@ -13,23 +13,23 @@ namespace Yaui.Editor
     /// </summary>
     [CustomEditor(typeof(YauiElement), true)]
     [CanEditMultipleObjects]
-    class YauiElementEditor : UnityEditor.Editor
+    internal class YauiElementEditor : UnityEditor.Editor
     {
-        static readonly Color OutlineColor = new(0.3f, 0.7f, 1f, 1f);
-        static readonly Color MarginColor = new(0.98f, 0.8f, 0.6f, 0.35f);
-        static readonly Color BorderColor = new(0.99f, 0.87f, 0.6f, 0.5f);
-        static readonly Color PaddingColor = new(0.76f, 0.87f, 0.6f, 0.5f);
-        static readonly Color ContentColor = new(0.55f, 0.72f, 0.85f, 0.5f);
-        static readonly Vector3[] Corners = new Vector3[4];
+        private static readonly Color OutlineColor = new(0.3f, 0.7f, 1f, 1f);
+        private static readonly Color MarginColor = new(0.98f, 0.8f, 0.6f, 0.35f);
+        private static readonly Color BorderColor = new(0.99f, 0.87f, 0.6f, 0.5f);
+        private static readonly Color PaddingColor = new(0.76f, 0.87f, 0.6f, 0.5f);
+        private static readonly Color ContentColor = new(0.55f, 0.72f, 0.85f, 0.5f);
+        private static readonly Vector3[] Corners = new Vector3[4];
 
-        static bool showAllLayout;
+        private static bool showAllLayout;
 
-        bool toolsWereHidden;
+        private bool toolsWereHidden;
 
-        SerializedProperty layout;
-        SerializedProperty box;
+        private SerializedProperty layout;
+        private SerializedProperty box;
 
-        void OnEnable()
+        private void OnEnable()
         {
             toolsWereHidden = Tools.hidden;
             Tools.hidden = true;
@@ -37,9 +37,15 @@ namespace Yaui.Editor
             box = serializedObject.FindProperty("box");
         }
 
-        void OnDisable() => Tools.hidden = toolsWereHidden;
+        private void OnDisable()
+        {
+            Tools.hidden = toolsWereHidden;
+        }
 
-        SerializedProperty Layout(string name) => layout.FindPropertyRelative(name);
+        private SerializedProperty Layout(string name)
+        {
+            return layout.FindPropertyRelative(name);
+        }
 
         public override void OnInspectorGUI()
         {
@@ -48,45 +54,58 @@ namespace Yaui.Editor
             EditorGUILayout.Space();
             var iterator = serializedObject.GetIterator();
             for (var enter = true; iterator.NextVisible(enter); enter = false)
-            {
                 if (iterator.name is not ("m_Script" or "layout") && !DrawProperty(iterator))
-                {
                     EditorGUILayout.PropertyField(iterator, true);
-                }
-            }
 
             serializedObject.ApplyModifiedProperties();
         }
 
         /// <summary>Draws a property of a derived element in its own way, or returns false for the default field.</summary>
-        protected virtual bool DrawProperty(SerializedProperty property) => false;
+        protected virtual bool DrawProperty(SerializedProperty property)
+        {
+            return false;
+        }
 
-        void DrawLayout()
+        private void DrawLayout()
         {
             EditorGUILayout.LabelField("Layout", EditorStyles.boldLabel);
             LayoutGui.EnumButtons("Position", Layout(nameof(LayoutStyle.Position)),
                 new[] { (int)PositionType.Relative, (int)PositionType.Absolute }, new[] { "Relative", "Absolute" });
             if (Layout(nameof(LayoutStyle.Position)).intValue == (int)PositionType.Absolute ||
                 Layout(nameof(LayoutStyle.Position)).hasMultipleDifferentValues)
-            {
                 DrawEdges("Inset", Layout(nameof(LayoutStyle.Inset)));
-            }
 
             EditorGUILayout.Space(2f);
             LayoutGui.EnumButtons("Direction", Layout(nameof(LayoutStyle.Direction)),
-                new[] { (int)FlexDirection.Row, (int)FlexDirection.Column, (int)FlexDirection.RowReverse, (int)FlexDirection.ColumnReverse },
+                new[]
+                {
+                    (int)FlexDirection.Row, (int)FlexDirection.Column, (int)FlexDirection.RowReverse,
+                    (int)FlexDirection.ColumnReverse
+                },
                 new[] { "Row →", "Column ↓", "Row ←", "Column ↑" });
             LayoutGui.EnumButtons("Wrap", Layout(nameof(LayoutStyle.Wrap)),
                 new[] { (int)FlexWrap.NoWrap, (int)FlexWrap.Wrap, (int)FlexWrap.WrapReverse },
                 new[] { "No Wrap", "Wrap", "Reverse" });
             LayoutGui.EnumButtons("Justify", Layout(nameof(LayoutStyle.JustifyContent)),
-                new[] { (int)FlexJustify.FlexStart, (int)FlexJustify.Center, (int)FlexJustify.FlexEnd, (int)FlexJustify.SpaceBetween, (int)FlexJustify.SpaceAround, (int)FlexJustify.SpaceEvenly },
+                new[]
+                {
+                    (int)FlexJustify.FlexStart, (int)FlexJustify.Center, (int)FlexJustify.FlexEnd,
+                    (int)FlexJustify.SpaceBetween, (int)FlexJustify.SpaceAround, (int)FlexJustify.SpaceEvenly
+                },
                 new[] { "Start", "Center", "End", "Between", "Around", "Evenly" });
             LayoutGui.EnumButtons("Align Items", Layout(nameof(LayoutStyle.AlignItems)),
-                new[] { (int)FlexAlign.FlexStart, (int)FlexAlign.Center, (int)FlexAlign.FlexEnd, (int)FlexAlign.Stretch, (int)FlexAlign.Baseline },
+                new[]
+                {
+                    (int)FlexAlign.FlexStart, (int)FlexAlign.Center, (int)FlexAlign.FlexEnd, (int)FlexAlign.Stretch,
+                    (int)FlexAlign.Baseline
+                },
                 new[] { "Start", "Center", "End", "Stretch", "Baseline" });
             LayoutGui.EnumButtons("Align Self", Layout(nameof(LayoutStyle.AlignSelf)),
-                new[] { (int)FlexAlign.Auto, (int)FlexAlign.FlexStart, (int)FlexAlign.Center, (int)FlexAlign.FlexEnd, (int)FlexAlign.Stretch },
+                new[]
+                {
+                    (int)FlexAlign.Auto, (int)FlexAlign.FlexStart, (int)FlexAlign.Center, (int)FlexAlign.FlexEnd,
+                    (int)FlexAlign.Stretch
+                },
                 new[] { "Auto", "Start", "Center", "End", "Stretch" });
 
             EditorGUILayout.Space(2f);
@@ -109,17 +128,14 @@ namespace Yaui.Editor
                 while (!SerializedProperty.EqualContents(iterator, end))
                 {
                     EditorGUILayout.PropertyField(iterator, true);
-                    if (!iterator.NextVisible(false))
-                    {
-                        break;
-                    }
+                    if (!iterator.NextVisible(false)) break;
                 }
 
                 EditorGUI.indentLevel--;
             }
         }
 
-        static void SizeRow(string label, SerializedProperty width, SerializedProperty height)
+        private static void SizeRow(string label, SerializedProperty width, SerializedProperty height)
         {
             var rect = EditorGUILayout.GetControlRect();
             rect = EditorGUI.PrefixLabel(rect, new GUIContent(label, "auto, 120 (canvas units) or 50%"));
@@ -134,20 +150,23 @@ namespace Yaui.Editor
             EditorGUI.indentLevel = indent;
         }
 
-        void FlexRow()
+        private void FlexRow()
         {
             var rect = EditorGUILayout.GetControlRect();
             rect = EditorGUI.PrefixLabel(rect, new GUIContent("Grow / Shrink / Basis"));
             var third = (rect.width - 8f) / 3f;
             var indent = EditorGUI.indentLevel;
             EditorGUI.indentLevel = 0;
-            EditorGUI.PropertyField(new Rect(rect.x, rect.y, third, rect.height), Layout(nameof(LayoutStyle.Grow)), GUIContent.none);
-            EditorGUI.PropertyField(new Rect(rect.x + third + 4f, rect.y, third, rect.height), Layout(nameof(LayoutStyle.Shrink)), GUIContent.none);
-            LayoutGui.LengthField(new Rect(rect.x + (third + 4f) * 2f, rect.y, third, rect.height), Layout(nameof(LayoutStyle.Basis)));
+            EditorGUI.PropertyField(new Rect(rect.x, rect.y, third, rect.height), Layout(nameof(LayoutStyle.Grow)),
+                GUIContent.none);
+            EditorGUI.PropertyField(new Rect(rect.x + third + 4f, rect.y, third, rect.height),
+                Layout(nameof(LayoutStyle.Shrink)), GUIContent.none);
+            LayoutGui.LengthField(new Rect(rect.x + (third + 4f) * 2f, rect.y, third, rect.height),
+                Layout(nameof(LayoutStyle.Basis)));
             EditorGUI.indentLevel = indent;
         }
 
-        static void DrawEdges(string label, SerializedProperty edges)
+        private static void DrawEdges(string label, SerializedProperty edges)
         {
             var rect = EditorGUILayout.GetControlRect();
             rect = EditorGUI.PrefixLabel(rect, new GUIContent(label, "Left, top, right, bottom"));
@@ -156,16 +175,14 @@ namespace Yaui.Editor
             EditorGUI.indentLevel = 0;
             string[] names = { nameof(Edges.Left), nameof(Edges.Top), nameof(Edges.Right), nameof(Edges.Bottom) };
             for (var i = 0; i < 4; i++)
-            {
                 LayoutGui.LengthField(new Rect(rect.x + (quarter + 4f) * i, rect.y, quarter, rect.height),
                     edges.FindPropertyRelative(names[i]));
-            }
 
             EditorGUI.indentLevel = indent;
         }
 
         /// <summary>Margin, border and padding as nested boxes, like the box model of browser developer tools.</summary>
-        void DrawBoxModel()
+        private void DrawBoxModel()
         {
             const float field = 44f;
             const float row = 18f;
@@ -196,40 +213,38 @@ namespace Yaui.Editor
             EditorGUI.BeginChangeCheck();
             var width = EditorGUI.DelayedFloatField(
                 new Rect(borderRect.center.x - field * 0.5f, borderRect.y + 1f, field, row - 2f), border.floatValue);
-            if (EditorGUI.EndChangeCheck())
-            {
-                border.floatValue = Mathf.Max(0f, width);
-            }
+            if (EditorGUI.EndChangeCheck()) border.floatValue = Mathf.Max(0f, width);
 
             EditorGUI.showMixedValue = false;
         }
 
-        static Rect Inset(Rect rect, float x, float y) => new(rect.x + x, rect.y + y, rect.width - x * 2f, rect.height - y * 2f);
+        private static Rect Inset(Rect rect, float x, float y)
+        {
+            return new Rect(rect.x + x, rect.y + y, rect.width - x * 2f, rect.height - y * 2f);
+        }
 
         /// <summary>Fields for the four edges in the band between <paramref name="outer"/> and <paramref name="inner"/>.</summary>
-        static void EdgeFields(Rect outer, Rect inner, SerializedProperty edges, float field, float row)
+        private static void EdgeFields(Rect outer, Rect inner, SerializedProperty edges, float field, float row)
         {
             var w = field - 4f;
             var h = row - 2f;
-            LayoutGui.LengthField(new Rect(outer.center.x - w * 0.5f, outer.y + 1f, w, h), edges.FindPropertyRelative(nameof(Edges.Top)));
-            LayoutGui.LengthField(new Rect(outer.center.x - w * 0.5f, inner.yMax + 1f, w, h), edges.FindPropertyRelative(nameof(Edges.Bottom)));
-            LayoutGui.LengthField(new Rect(outer.x + 2f, outer.center.y - h * 0.5f, w, h), edges.FindPropertyRelative(nameof(Edges.Left)));
-            LayoutGui.LengthField(new Rect(inner.xMax + 2f, outer.center.y - h * 0.5f, w, h), edges.FindPropertyRelative(nameof(Edges.Right)));
+            LayoutGui.LengthField(new Rect(outer.center.x - w * 0.5f, outer.y + 1f, w, h),
+                edges.FindPropertyRelative(nameof(Edges.Top)));
+            LayoutGui.LengthField(new Rect(outer.center.x - w * 0.5f, inner.yMax + 1f, w, h),
+                edges.FindPropertyRelative(nameof(Edges.Bottom)));
+            LayoutGui.LengthField(new Rect(outer.x + 2f, outer.center.y - h * 0.5f, w, h),
+                edges.FindPropertyRelative(nameof(Edges.Left)));
+            LayoutGui.LengthField(new Rect(inner.xMax + 2f, outer.center.y - h * 0.5f, w, h),
+                edges.FindPropertyRelative(nameof(Edges.Right)));
         }
 
-        void OnSceneGUI()
+        private void OnSceneGUI()
         {
             var element = (YauiElement)target;
-            if (element.NodeSlot <= 0 || !YauiSystem.IsInitialized)
-            {
-                return;
-            }
+            if (element.NodeSlot <= 0 || !YauiSystem.IsInitialized) return;
 
             var panel = element.GetComponentInParent<YauiPanel>();
-            if (panel == null)
-            {
-                return;
-            }
+            if (panel == null) return;
 
             // The node's world transform in canvas space, from the last propagation, then to the Scene view.
             var node = YauiSystem.Nodes.Gpu.Read(element.NodeSlot);
@@ -238,6 +253,7 @@ namespace Yaui.Editor
             var translation = node.Translation;
             var toWorld = panel.SceneViewCanvasToWorld;
             var toCanvas = toWorld.inverse;
+
             Vector3 World(float2 local)
             {
                 var canvas = math.mul(linear, local) + translation;
@@ -269,75 +285,60 @@ namespace Yaui.Editor
                 using var handleObject = new SerializedObject(element);
                 var handleLayout = handleObject.FindProperty("layout");
                 if (resized.x != size.x)
-                {
-                    LayoutGui.Write(handleLayout.FindPropertyRelative(nameof(LayoutStyle.Width)), Length.Points(Mathf.Round(math.max(resized.x, 0f))));
-                }
+                    LayoutGui.Write(handleLayout.FindPropertyRelative(nameof(LayoutStyle.Width)),
+                        Length.Points(Mathf.Round(math.max(resized.x, 0f))));
 
                 if (resized.y != size.y)
-                {
-                    LayoutGui.Write(handleLayout.FindPropertyRelative(nameof(LayoutStyle.Height)), Length.Points(Mathf.Round(math.max(resized.y, 0f))));
-                }
+                    LayoutGui.Write(handleLayout.FindPropertyRelative(nameof(LayoutStyle.Height)),
+                        Length.Points(Mathf.Round(math.max(resized.y, 0f))));
 
                 handleObject.ApplyModifiedProperties();
             }
 
             // Position: absolutely positioned elements move by their insets.
-            if (element.Layout.Position != PositionType.Absolute)
-            {
-                return;
-            }
+            if (element.Layout.Position != PositionType.Absolute) return;
 
             var center = World(size * 0.5f);
             EditorGUI.BeginChangeCheck();
             var moved = Handles.FreeMoveHandle(center, handleSize * 1.5f, Vector3.zero, Handles.RectangleHandleCap);
-            if (!EditorGUI.EndChangeCheck())
-            {
-                return;
-            }
+            if (!EditorGUI.EndChangeCheck()) return;
 
             var from = toCanvas.MultiplyPoint3x4(center);
             var to = toCanvas.MultiplyPoint3x4(moved);
             var delta = new float2(Mathf.Round(to.x - from.x), Mathf.Round(to.y - from.y));
             using var insetObject = new SerializedObject(element);
             var inset = insetObject.FindProperty("layout").FindPropertyRelative(nameof(LayoutStyle.Inset));
-            MoveInset(inset.FindPropertyRelative(nameof(Edges.Left)), inset.FindPropertyRelative(nameof(Edges.Right)), delta.x);
-            MoveInset(inset.FindPropertyRelative(nameof(Edges.Top)), inset.FindPropertyRelative(nameof(Edges.Bottom)), delta.y);
+            MoveInset(inset.FindPropertyRelative(nameof(Edges.Left)), inset.FindPropertyRelative(nameof(Edges.Right)),
+                delta.x);
+            MoveInset(inset.FindPropertyRelative(nameof(Edges.Top)), inset.FindPropertyRelative(nameof(Edges.Bottom)),
+                delta.y);
             insetObject.ApplyModifiedProperties();
         }
 
-        delegate float2 ToLocal(Vector3 world);
+        private delegate float2 ToLocal(Vector3 world);
 
-        static float2 SizeHandle(Vector3 position, float handleSize, ToLocal toLocal, float2 size, bool x, bool y)
+        private static float2 SizeHandle(Vector3 position, float handleSize, ToLocal toLocal, float2 size, bool x,
+            bool y)
         {
             EditorGUI.BeginChangeCheck();
             var moved = Handles.FreeMoveHandle(position, handleSize, Vector3.zero, Handles.DotHandleCap);
-            if (!EditorGUI.EndChangeCheck())
-            {
-                return size;
-            }
+            if (!EditorGUI.EndChangeCheck()) return size;
 
             var local = toLocal(moved);
             return new float2(x ? local.x : size.x, y ? local.y : size.y);
         }
 
         /// <summary>Moves by the start inset if it is set in canvas units, otherwise by the end inset.</summary>
-        static void MoveInset(SerializedProperty start, SerializedProperty end, float delta)
+        private static void MoveInset(SerializedProperty start, SerializedProperty end, float delta)
         {
-            if (delta == 0f)
-            {
-                return;
-            }
+            if (delta == 0f) return;
 
             var s = LayoutGui.Read(start);
             var e = LayoutGui.Read(end);
             if (s.Unit == LengthUnit.Point || e.Unit != LengthUnit.Point)
-            {
                 LayoutGui.Write(start, Length.Points((s.Unit == LengthUnit.Point ? s.Value : 0f) + delta));
-            }
             else
-            {
                 LayoutGui.Write(end, Length.Points(e.Value - delta));
-            }
         }
     }
 }

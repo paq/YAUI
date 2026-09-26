@@ -7,7 +7,7 @@ namespace Yaui
         LeftToRight,
         RightToLeft,
         BottomToTop,
-        TopToBottom,
+        TopToBottom
     }
 
     /// <summary>
@@ -16,41 +16,40 @@ namespace Yaui
     /// </summary>
     internal static class Track
     {
-        public static bool IsVertical(TrackDirection direction) =>
-            direction is TrackDirection.BottomToTop or TrackDirection.TopToBottom;
+        public static bool IsVertical(TrackDirection direction)
+        {
+            return direction is TrackDirection.BottomToTop or TrackDirection.TopToBottom;
+        }
 
         /// <summary>Whether the value grows against the canvas axis (right to left, or up since Y points down).</summary>
-        public static bool IsReversed(TrackDirection direction) =>
-            direction is TrackDirection.RightToLeft or TrackDirection.BottomToTop;
+        public static bool IsReversed(TrackDirection direction)
+        {
+            return direction is TrackDirection.RightToLeft or TrackDirection.BottomToTop;
+        }
 
         /// <summary>The coordinate along the track's axis of a local point, and the track's length.</summary>
-        public static float Along(TrackDirection direction, Vector2 local) =>
-            IsVertical(direction) ? local.y : local.x;
+        public static float Along(TrackDirection direction, Vector2 local)
+        {
+            return IsVertical(direction) ? local.y : local.x;
+        }
 
-        public static float Length(YauiElement track, TrackDirection direction) =>
-            IsVertical(direction) ? track.LayoutRect.height : track.LayoutRect.width;
+        public static float Length(YauiElement track, TrackDirection direction)
+        {
+            return IsVertical(direction) ? track.LayoutRect.height : track.LayoutRect.width;
+        }
 
         /// <summary>A screen position as a fraction of the track in the direction of the value (unclamped).</summary>
         public static bool TryFractionAt(YauiElement track, TrackDirection direction, Vector2 screenPosition,
             float offset, out float fraction)
         {
             fraction = 0f;
-            if (track == null)
-            {
-                return false;
-            }
+            if (track == null) return false;
 
             var length = Length(track, direction);
-            if (length <= 0f || !track.ScreenToLocal(screenPosition, out var local))
-            {
-                return false;
-            }
+            if (length <= 0f || !track.ScreenToLocal(screenPosition, out var local)) return false;
 
             fraction = (Along(direction, local) - offset) / length;
-            if (IsReversed(direction))
-            {
-                fraction = 1f - fraction;
-            }
+            if (IsReversed(direction)) fraction = 1f - fraction;
 
             return true;
         }
@@ -59,10 +58,7 @@ namespace Yaui
         public static float Extent(YauiElement element, TrackDirection direction)
         {
             var size = IsVertical(direction) ? element.Layout.Height : element.Layout.Width;
-            if (size.Unit == LengthUnit.Point)
-            {
-                return size.Value;
-            }
+            if (size.Unit == LengthUnit.Point) return size.Value;
 
             return IsVertical(direction) ? element.LayoutRect.height : element.LayoutRect.width;
         }
@@ -106,10 +102,7 @@ namespace Yaui
                 layout.Inset.Bottom = reversed ? from : Yaui.Length.Auto;
                 layout.Margin.Top = reversed ? layout.Margin.Top : margin;
                 layout.Margin.Bottom = reversed ? margin : layout.Margin.Bottom;
-                if (length >= 0f)
-                {
-                    layout.Height = Yaui.Length.Percent(length * 100f);
-                }
+                if (length >= 0f) layout.Height = Yaui.Length.Percent(length * 100f);
             }
             else
             {
@@ -117,17 +110,11 @@ namespace Yaui
                 layout.Inset.Right = reversed ? from : Yaui.Length.Auto;
                 layout.Margin.Left = reversed ? layout.Margin.Left : margin;
                 layout.Margin.Right = reversed ? margin : layout.Margin.Right;
-                if (length >= 0f)
-                {
-                    layout.Width = Yaui.Length.Percent(length * 100f);
-                }
+                if (length >= 0f) layout.Width = Yaui.Length.Percent(length * 100f);
             }
 
             // Writing the same layout would still re-run the layout.
-            if (!layout.Equals(element.Layout))
-            {
-                element.Layout = layout;
-            }
+            if (!layout.Equals(element.Layout)) element.Layout = layout;
         }
 
         /// <summary>A fill from the start of the track to <paramref name="fraction"/>, covering the other axis.</summary>
@@ -156,10 +143,7 @@ namespace Yaui
                 layout.Inset.Right = IsReversed(direction) ? full : Yaui.Length.Auto;
             }
 
-            if (!layout.Equals(element.Layout))
-            {
-                element.Layout = layout;
-            }
+            if (!layout.Equals(element.Layout)) element.Layout = layout;
         }
 
         /// <summary>
@@ -168,10 +152,7 @@ namespace Yaui
         /// </summary>
         public static void ClearAxis(YauiElement element, TrackDirection previous, TrackDirection next)
         {
-            if (element == null || IsVertical(previous) == IsVertical(next))
-            {
-                return;
-            }
+            if (element == null || IsVertical(previous) == IsVertical(next)) return;
 
             var layout = element.Layout;
             var zero = Yaui.Length.Points(0f);
