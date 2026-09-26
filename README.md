@@ -48,7 +48,7 @@ Elements are components on GameObjects: use **Prefabs, Animator, Timeline and th
 Open the Package Manager, choose **Install package from git URL...** and enter:
 
 ```
-https://github.com/ruccho/YAUI.git?path=/Packages/com.ruccho.yaui
+https://github.com/ruccho/YAUI.git?path=/Packages/com.ruccho.yaui#release
 ```
 
 ## Documentation

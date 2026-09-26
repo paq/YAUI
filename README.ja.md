@@ -47,7 +47,7 @@ Yoga の移植版による **Flexbox** レイアウトを Burst で計算しま�
 Package Manager を開き、**Install package from git URL...** を選んで次の URL を入力してください。
 
 ```
-https://github.com/ruccho/YAUI.git?path=/Packages/com.ruccho.yaui
+https://github.com/ruccho/YAUI.git?path=/Packages/com.ruccho.yaui#release
 ```
 
 ## ドキュメント

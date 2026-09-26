@@ -29,7 +29,7 @@ YAUI はテキストに Advanced Text Generator (ATG) を使います。その�
 **Window > Package Manager** を開き、**+** をクリックして **Install package from git URL...** を選び、次の URL を入力してください。
 
 ```
-https://github.com/ruccho/YAUI.git?path=/Packages/com.ruccho.yaui
+https://github.com/ruccho/YAUI.git?path=/Packages/com.ruccho.yaui#release
 ```
 
 `Packages/manifest.json` に直接追加することもできます。
@@ -37,12 +37,12 @@ https://github.com/ruccho/YAUI.git?path=/Packages/com.ruccho.yaui
 ```json
 {
   "dependencies": {
-    "com.ruccho.yaui": "https://github.com/ruccho/YAUI.git?path=/Packages/com.ruccho.yaui"
+    "com.ruccho.yaui": "https://github.com/ruccho/YAUI.git?path=/Packages/com.ruccho.yaui#release"
   }
 }
 ```
 
-特定のバージョンを使うには、URL の末尾にタグを付けてください (例: `#v0.1.0`)。
+`#release` は最新のリリースをインストールします。特定のバージョンを使うには、これをタグに置き換えてください (例: `#v0.1.0`)。
 
 ## 入力の設定 {#set-up-input}
 

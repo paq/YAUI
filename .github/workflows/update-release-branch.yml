@@ -1,0 +1,29 @@
+# Moves the release branch to the latest release, so that the git URL with #release installs a released version.
+name: Update release branch
+
+on:
+  release:
+    types: [released, prereleased]
+  workflow_dispatch:
+
+jobs:
+  update-release-branch:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Configure Git
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+      - name: Update release branch
+        run: |
+          git checkout release || git checkout -b release
+          git reset --hard ${{ github.event.release.tag_name || github.ref_name }}
+          git push origin release --force
