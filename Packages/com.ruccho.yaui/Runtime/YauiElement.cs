@@ -530,8 +530,14 @@ namespace Yaui
         {
             ref var p = ref YauiSystem.Primitives[_contentStart + index];
 
-            // Draws are split by the textures they use.
+            // Draws are split by the textures they use, and use the shader variant of their features.
             if (PrimitiveTexture.IdOf(p.Flags) != PrimitiveTexture.IdOf(data.Flags)) _panel.OrderDirty = true;
+            if (ShaderFeaturesExtensions.Of(p.Flags) != ShaderFeaturesExtensions.Of(data.Flags))
+                _panel.FeaturesDirty = true;
+
+            // Draws are reordered by the bounds and the features of their primitives.
+            if (!p.Rect.Equals(data.Rect) || p.Flags != data.Flags || p.BorderWidthAndSkew != data.BorderWidthAndSkew)
+                _panel.ReorderDirty = true;
 
             p = data;
             p.Node = (uint)NodeSlot;
@@ -753,6 +759,15 @@ namespace Yaui
             }
 
             ref var p = ref YauiSystem.Primitives[BoxSlot];
+            if (_panel != null)
+            {
+                if (ShaderFeaturesExtensions.Of(p.Flags) != ShaderFeaturesExtensions.Of(flags))
+                    _panel.FeaturesDirty = true;
+
+                // The extent of a shadow changes the bounds.
+                if (p.Flags != flags || (flags & PrimitiveFlags.Shadow) != 0) _panel.ReorderDirty = true;
+            }
+
             p.Node = (uint)NodeSlot;
             p.Flags = flags;
             p.Color = GpuPacking.Color(box.backgroundColor);
@@ -770,8 +785,10 @@ namespace Yaui
         internal void WriteBoxRect()
         {
             var size = YauiSystem.Nodes[NodeSlot].LayoutSize;
-            YauiSystem.Primitives[BoxSlot].Rect =
-                box.IsVisible || _mask != null ? new float4(0f, 0f, size) : float4.zero;
+            var rect = box.IsVisible || _mask != null ? new float4(0f, 0f, size) : float4.zero;
+            if (_panel != null && !YauiSystem.Primitives.Read(BoxSlot).Rect.Equals(rect)) _panel.ReorderDirty = true;
+
+            YauiSystem.Primitives[BoxSlot].Rect = rect;
             if (_boxDrawn != box.IsVisible)
             {
                 _boxDrawn = box.IsVisible;

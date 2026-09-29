@@ -45,6 +45,9 @@ namespace Yaui.Core
         public int TextureStart;
 
         public int TextureCount;
+
+        /// <summary>The features of the uber shader the primitives use (<see cref="PanelState.UpdateFeatures"/>).</summary>
+        public ShaderFeatures Features;
     }
 
     /// <summary>
@@ -73,6 +76,30 @@ namespace Yaui.Core
         private bool _allTransformsDirty = true;
         private bool _hitTestDirty;
         private NativeList<uint> _order;
+
+        // The painter's order and its segments, kept when reordering can merge draws (Reorder).
+        private NativeList<uint> _naiveOrder;
+        private readonly List<DrawSegment> _naiveSegments = new();
+        private readonly List<int> _naiveTextures = new();
+        private readonly List<Material> _reorderMaterials = new();
+        private NativeList<DrawReorder.Region> _jobRegions;
+        private NativeList<int4> _reorderSegments;
+        private NativeList<int4> _reorderDraws;
+        private NativeList<int> _reorderDrawCounts;
+        private NativeList<int> _reorderTextures;
+        private bool _reorderable;
+        private bool _reorderScheduled;
+        private JobHandle _reorderJob;
+
+        // The transforms changed since the order was last reordered.
+        private bool _transformsChanged;
+
+        // The draw order changed since it was last uploaded.
+        private bool _orderChanged;
+        private int _drawCount;
+
+        /// <summary>The bounds of a primitive may have changed since the draw order was last reordered.</summary>
+        public bool ReorderDirty;
         private GraphicsBuffer _orderBuffer;
 
         // Scratch of the transform pass, per depth-first index.
@@ -94,6 +121,16 @@ namespace Yaui.Core
         public bool NeedsPixelClip;
 
         private NativeArray<int> _scanResult;
+
+        // Scratch of the feature scan, per segment.
+        private NativeList<int2> _featureRanges;
+        private NativeList<ShaderFeatures> _features;
+
+        /// <summary>
+        /// The segments, or the shader features of a primitive (<see cref="ShaderFeaturesExtensions.Of"/>), changed
+        /// since the features of the segments were last scanned.
+        /// </summary>
+        public bool FeaturesDirty = true;
 
         /// <summary>The primitives of an element changed (e.g. a text needs more glyph slots).</summary>
         public bool OrderDirty;
@@ -124,6 +161,8 @@ namespace Yaui.Core
         // Texts whose content changed; whether their size did is resolved in the layout job, after generation.
         private readonly List<YauiText> _pendingMeasures = new();
 
+        private static readonly Unity.Profiling.ProfilerMarker ReorderWaitMarker = new("Yaui.Reorder.Wait");
+
         public PanelState(YauiPanel panel)
         {
             Panel = panel;
@@ -133,6 +172,12 @@ namespace Yaui.Core
             _dirtyNodes = new NativeList<int>(64, Allocator.Persistent);
             _transformRanges = new NativeList<int2>(16, Allocator.Persistent);
             _order = new NativeList<uint>(64, Allocator.Persistent);
+            _naiveOrder = new NativeList<uint>(64, Allocator.Persistent);
+            _jobRegions = new NativeList<DrawReorder.Region>(4, Allocator.Persistent);
+            _reorderSegments = new NativeList<int4>(16, Allocator.Persistent);
+            _reorderDraws = new NativeList<int4>(16, Allocator.Persistent);
+            _reorderDrawCounts = new NativeList<int>(4, Allocator.Persistent);
+            _reorderTextures = new NativeList<int>(16, Allocator.Persistent);
             _world = new NativeList<float2x3>(64, Allocator.Persistent);
             _opacity = new NativeList<float>(64, Allocator.Persistent);
             _clipSlot = new NativeList<int>(64, Allocator.Persistent);
@@ -141,9 +186,15 @@ namespace Yaui.Core
 
         public YauiElement Root => Panel != null ? Panel.Element : null;
 
+        /// <summary>The draw order, uploaded if it changed (<see cref="FlushOrder"/>).</summary>
         public GraphicsBuffer OrderBuffer => _orderBuffer;
 
-        public int DrawCount => _order.Length;
+        public int DrawCount => _drawCount;
+
+        /// <summary>Primitive slots in the order they are drawn, and in the painter's order (tests).</summary>
+        internal NativeArray<uint> DrawOrder => _order.AsArray();
+
+        internal NativeArray<uint> PainterOrder => _reorderable ? _naiveOrder.AsArray() : _order.AsArray();
 
         /// <summary>Whether anything is drawn: primitives, or the meshes of custom draws.</summary>
         public bool HasDraws => Segments.Count > 0;
@@ -231,7 +282,9 @@ namespace Yaui.Core
         /// </summary>
         public void RebuildOrder()
         {
+            CompleteReorder();
             OrderDirty = false;
+            FeaturesDirty = true;
             _order.Clear();
             Segments.Clear();
             SegmentTextures.Clear();
@@ -285,7 +338,249 @@ namespace Yaui.Core
             FlushDraw();
             while (SegmentProperties.Count < Segments.Count) SegmentProperties.Add(new MaterialPropertyBlock());
 
-            UploadOrder();
+            _drawCount = _order.Length;
+            PlanRegions();
+            if (_reorderable)
+            {
+                _naiveOrder.CopyFrom(_order);
+                _naiveSegments.Clear();
+                _naiveSegments.AddRange(Segments);
+                _naiveTextures.Clear();
+                _naiveTextures.AddRange(SegmentTextures);
+                ReorderDirty = true;
+            }
+
+            _orderChanged = true;
+        }
+
+        /// <summary>
+        /// The end (exclusive) of the region of segments from <paramref name="start"/>: the plain draws that follow at
+        /// the same stencil depth, whose primitives may be reordered among themselves. Other segments are regions of
+        /// their own.
+        /// </summary>
+        private static int RegionEnd(List<DrawSegment> segments, int start)
+        {
+            var first = segments[start];
+            var end = start + 1;
+            if (first.Kind != SegmentKind.Draw) return end;
+
+            while (end < segments.Count && segments[end].Kind == SegmentKind.Draw &&
+                   segments[end].StencilDepth == first.StencilDepth)
+                end++;
+
+            return end;
+        }
+
+        /// <summary>Whether a region has more draws than materials: reordering may merge some of them.</summary>
+        private bool CanMerge(List<DrawSegment> segments, int start, int end)
+        {
+            // The materials of the region, in _reorderMaterials.
+            _reorderMaterials.Clear();
+            for (var i = start; i < end; i++)
+                if (!_reorderMaterials.Contains(segments[i].Material))
+                    _reorderMaterials.Add(segments[i].Material);
+
+            return end - start >= 3 && end - start > _reorderMaterials.Count;
+        }
+
+        /// <summary>
+        /// Main thread, at collection, after the transforms: schedules the reordering of the painter's order so that
+        /// draws of the same material merge where no primitives overlap (<see cref="DrawReorder"/>), if the order, the
+        /// transforms or the primitives changed. Only panels where some draws could merge are reordered. The draws are
+        /// ready after <see cref="CompleteReorder"/>.
+        /// </summary>
+        public void ScheduleReorder()
+        {
+            if (!_reorderable || !(ReorderDirty || _transformsChanged)) return;
+
+            var costs = ReorderCosts();
+            ReorderDirty = false;
+            _transformsChanged = false;
+            _order.CopyFrom(_naiveOrder);
+            _reorderDraws.Clear();
+            _reorderDrawCounts.Clear();
+            _reorderTextures.Clear();
+            _reorderJob = new DrawReorder
+            {
+                Regions = _jobRegions.AsArray(),
+                PainterOrder = _naiveOrder.AsArray(),
+                Segments = _reorderSegments.AsArray(),
+                CanvasSize = CanvasSize,
+                Cost = costs,
+                Primitives = YauiSystem.Primitives.AsArray(),
+                Exts = YauiSystem.Exts.AsArray(),
+                Nodes = YauiSystem.Nodes.Gpu.AsArray(),
+                Clips = YauiSystem.Clips.AsArray(),
+                Order = _order.AsArray(),
+                Draws = _reorderDraws,
+                DrawCounts = _reorderDrawCounts,
+                Textures = _reorderTextures
+            }.Schedule();
+            _reorderScheduled = true;
+        }
+
+        private DrawReorder.Costs ReorderCosts()
+        {
+            var costs = new DrawReorder.Costs
+            {
+                DrawGpu = YauiBatching.DrawGpuMicroseconds,
+                DrawCpu = YauiBatching.DrawCpuMicroseconds,
+                GpuWeight = YauiBatching.GpuWeight,
+                CpuWeight = YauiBatching.CpuWeight,
+                Margin = YauiBatching.SplitMargin,
+                SplitByFeatures = YauiBatching.SplitByShaderFeatures,
+                Moving = _transformsChanged,
+                LayeringPerPrimitive = YauiBatching.LayeringMicroseconds,
+                PixelsPerUnitSquared = ScaleFactor * ScaleFactor
+            };
+            for (var i = 0; i < ShaderFeaturesExtensions.Count; i++)
+            {
+                var features = (ShaderFeatures)i;
+                var cost = YauiBatching.PixelBaseMicroseconds;
+                if ((features & ShaderFeatures.Text) != 0) cost += YauiBatching.PixelTextMicroseconds;
+                if ((features & ShaderFeatures.Image) != 0) cost += YauiBatching.PixelImageMicroseconds;
+                if ((features & ShaderFeatures.Border) != 0) cost += YauiBatching.PixelBorderMicroseconds;
+                if ((features & ShaderFeatures.Shadow) != 0) cost += YauiBatching.PixelShadowMicroseconds;
+                costs.Pixel.Add(cost);
+            }
+
+            return costs;
+        }
+
+        /// <summary>
+        /// Main thread: waits for the reordering and builds the draws. Before the stores are written again (the job
+        /// reads them) and before the draws are read.
+        /// </summary>
+        public void CompleteReorder()
+        {
+            if (!_reorderScheduled) return;
+
+            _reorderScheduled = false;
+            using (ReorderWaitMarker.Auto()) _reorderJob.Complete();
+
+            Segments.Clear();
+            SegmentTextures.Clear();
+            var mergeable = 0;
+            var draw = 0;
+            var texture = 0;
+            foreach (var region in _regions)
+            {
+                if (!region.Mergeable)
+                {
+                    for (var i = region.Start; i < region.End; i++) CopySegment(_naiveSegments[i]);
+                    continue;
+                }
+
+                var drawCount = _reorderDrawCounts[mergeable];
+                var job = _jobRegions[mergeable++];
+
+                // The painter's order (as copied when scheduled) costs the least, or does while the panel moves.
+                if (drawCount < 0)
+                {
+                    if (drawCount == DrawReorder.Deferred) ReorderDirty = true;
+
+                    for (var i = region.Start; i < region.End; i++) CopySegment(_naiveSegments[i]);
+                    continue;
+                }
+
+                for (var d = draw; d < draw + drawCount; d++)
+                {
+                    var info = _reorderDraws[d];
+                    Segments.Add(new DrawSegment
+                    {
+                        Start = job.Start + info.x, Count = info.y,
+                        Material = _regionMaterials[region.MaterialsStart + info.z / DrawReorder.FeatureKeys],
+                        Kind = SegmentKind.Draw, StencilDepth = _naiveSegments[region.Start].StencilDepth,
+                        TextureStart = SegmentTextures.Count, TextureCount = info.w
+                    });
+                    for (var i = 0; i < info.w; i++) SegmentTextures.Add(_reorderTextures[texture + i]);
+
+                    texture += info.w;
+                }
+
+                draw += drawCount;
+            }
+
+            while (SegmentProperties.Count < Segments.Count) SegmentProperties.Add(new MaterialPropertyBlock());
+
+            FeaturesDirty = true;
+            UpdateFeatures();
+            _orderChanged = true;
+        }
+
+        /// <summary>A run of the naive segments reordered as a whole (<see cref="RegionEnd"/>).</summary>
+        private struct Region
+        {
+            public int Start;
+            public int End;
+
+            /// <summary>
+            /// Its draws could merge or split (<see cref="DrawReorder"/>). These regions are those of _jobRegions, in
+            /// turn.
+            /// </summary>
+            public bool Mergeable;
+
+            /// <summary>Mergeable: the materials of its keys in _regionMaterials.</summary>
+            public int MaterialsStart;
+        }
+
+        private readonly List<Region> _regions = new();
+
+        // The materials of the keys of the mergeable regions.
+        private readonly List<Material> _regionMaterials = new();
+
+        /// <summary>Splits the segments into regions and prepares the mergeable ones for the reordering.</summary>
+        private void PlanRegions()
+        {
+            _regions.Clear();
+            _regionMaterials.Clear();
+            _reorderSegments.Clear();
+            _jobRegions.Clear();
+            _reorderable = false;
+            for (var s = 0; s < Segments.Count;)
+            {
+                var e = RegionEnd(Segments, s);
+                var region = new Region { Start = s, End = e };
+
+                // Some draws could merge, or split by shader features (in draws of the uber shader).
+                var merge = CanMerge(Segments, s, e);
+                region.Mergeable = merge || (YauiBatching.SplitByShaderFeatures &&
+                                             Segments[s].Kind == SegmentKind.Draw &&
+                                             _reorderMaterials.Contains(null));
+                if (region.Mergeable)
+                {
+                    _reorderable = true;
+                    region.MaterialsStart = _regionMaterials.Count;
+                    _regionMaterials.AddRange(_reorderMaterials);
+
+                    // Keys by material, numbered by first appearance.
+                    var from = Segments[s].Start;
+                    var last = Segments[e - 1];
+                    _jobRegions.Add(new DrawReorder.Region
+                    {
+                        Start = from, Count = last.Start + last.Count - from, SegmentsStart = _reorderSegments.Length,
+                        SegmentCount = e - s, MaterialCount = _reorderMaterials.Count
+                    });
+                    for (var i = s; i < e; i++)
+                    {
+                        var segment = Segments[i];
+                        _reorderSegments.Add(new int4(segment.Start - from, segment.Count,
+                            _reorderMaterials.IndexOf(segment.Material), segment.Material == null ? 1 : 0));
+                    }
+                }
+
+                _regions.Add(region);
+                s = e;
+            }
+        }
+
+        private void CopySegment(DrawSegment segment)
+        {
+            var textures = segment.TextureStart;
+            segment.TextureStart = SegmentTextures.Count;
+            for (var i = 0; i < segment.TextureCount; i++) SegmentTextures.Add(_naiveTextures[textures + i]);
+
+            Segments.Add(segment);
         }
 
         private void Close()
@@ -527,10 +822,45 @@ namespace Yaui.Core
             }
         }
 
-        /// <summary>Main thread, at collection: propagates transforms if anything changed.</summary>
-        public void UpdateTransforms()
+        /// <summary>
+        /// Main thread, at collection: the shader features of each draw segment, if they may have changed. While the
+        /// order is being reordered, <see cref="CompleteReorder"/> does it.
+        /// </summary>
+        public void UpdateFeatures()
         {
-            if (!TransformDirty || _nodes.Length == 0) return;
+            if (!FeaturesDirty || _reorderScheduled) return;
+
+            FeaturesDirty = false;
+            if (!_featureRanges.IsCreated)
+            {
+                _featureRanges = new NativeList<int2>(8, Allocator.Persistent);
+                _features = new NativeList<ShaderFeatures>(8, Allocator.Persistent);
+            }
+
+            _featureRanges.Clear();
+            foreach (var segment in Segments) _featureRanges.Add(new int2(segment.Start, segment.Count));
+
+            _features.ResizeUninitialized(Segments.Count);
+            new FeatureScan
+            {
+                Order = _order.AsArray(),
+                Primitives = YauiSystem.Primitives.AsArray(),
+                Segments = _featureRanges.AsArray(),
+                Result = _features.AsArray()
+            }.Run();
+
+            for (var i = 0; i < Segments.Count; i++)
+            {
+                var segment = Segments[i];
+                segment.Features = _features[i];
+                Segments[i] = segment;
+            }
+        }
+
+        /// <summary>Main thread, at collection: propagates transforms if anything changed. Returns whether it did.</summary>
+        public bool UpdateTransforms()
+        {
+            if (!TransformDirty || _nodes.Length == 0) return false;
 
             TransformDirty = false;
             var count = _nodes.Length;
@@ -591,6 +921,8 @@ namespace Yaui.Core
                 Result = _scanResult
             }.Run();
             NeedsPixelClip = _scanResult[0] != 0;
+            _transformsChanged = true;
+            return true;
         }
 
         private void BuildHitTest()
@@ -668,6 +1000,20 @@ namespace Yaui.Core
                 : null;
         }
 
+        /// <summary>
+        /// Main thread, before the draws are recorded or queued: completes the reordering and uploads the draw order
+        /// if it changed. World space panels queue their draws at submission, before the collection, so they upload
+        /// then: the order stays in step with the segments of the queued draws.
+        /// </summary>
+        public void FlushOrder()
+        {
+            CompleteReorder();
+            if (!_orderChanged) return;
+
+            _orderChanged = false;
+            UploadOrder();
+        }
+
         private void UploadOrder()
         {
             var count = Math.Max(_order.Length, 1);
@@ -683,8 +1029,14 @@ namespace Yaui.Core
 
         public void Dispose()
         {
+            _reorderJob.Complete();
             _hitTest.Dispose();
             if (_scanResult.IsCreated) _scanResult.Dispose();
+            if (_featureRanges.IsCreated)
+            {
+                _featureRanges.Dispose();
+                _features.Dispose();
+            }
 
             _orderBuffer?.Dispose();
             _orderBuffer = null;
@@ -696,6 +1048,12 @@ namespace Yaui.Core
                 _dirtyNodes.Dispose();
                 _transformRanges.Dispose();
                 _order.Dispose();
+                _naiveOrder.Dispose();
+                _jobRegions.Dispose();
+                _reorderSegments.Dispose();
+                _reorderDraws.Dispose();
+                _reorderDrawCounts.Dispose();
+                _reorderTextures.Dispose();
                 _world.Dispose();
                 _opacity.Dispose();
                 _clipSlot.Dispose();

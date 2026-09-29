@@ -30,6 +30,8 @@ namespace Yaui.Core
         private static readonly ProfilerMarker SubmitMarker = new("Yaui.Submit");
         private static readonly ProfilerMarker EarlySubmitMarker = new("Yaui.EarlySubmit");
         private static readonly ProfilerMarker CollectMarker = new("Yaui.Collect");
+        private static readonly ProfilerMarker FeaturesMarker = new("Yaui.Collect.Features");
+        private static readonly ProfilerMarker ReorderMarker = new("Yaui.Collect.Reorder");
         private static readonly ProfilerMarker LayoutMarker = new("Yaui.Layout");
 
         private static bool _initialized;
@@ -81,6 +83,7 @@ namespace Yaui.Core
 
             InstallPlayerLoop();
             RenderPipelineManager.beginContextRendering += OnBeginContextRendering;
+            RenderPipelineManager.endContextRendering += OnEndContextRendering;
             Application.quitting += Shutdown;
 #if UNITY_EDITOR
             UnityEditor.AssemblyReloadEvents.beforeAssemblyReload += Shutdown;
@@ -105,6 +108,7 @@ namespace Yaui.Core
             TextPipeline.Unsubscribe();
             Tickers.Clear();
             RenderPipelineManager.beginContextRendering -= OnBeginContextRendering;
+            RenderPipelineManager.endContextRendering -= OnEndContextRendering;
             Application.quitting -= Shutdown;
 #if UNITY_EDITOR
             UnityEditor.AssemblyReloadEvents.beforeAssemblyReload -= Shutdown;
@@ -158,6 +162,30 @@ namespace Yaui.Core
 
             Submit();
             Collect();
+            CompleteReorders();
+        }
+
+        /// <summary>The choice of draws changed (<see cref="YauiBatching"/>): every panel plans its draws again.</summary>
+        public static void InvalidateDraws()
+        {
+            if (!_initialized) return;
+
+            foreach (var panel in Panels) panel.OrderDirty = true;
+
+            RequestUpdate();
+        }
+
+        /// <summary>
+        /// Completes the reordering of every panel: it reads the stores, which scripts write after rendering.
+        /// </summary>
+        private static void CompleteReorders()
+        {
+            foreach (var panel in Panels) panel.CompleteReorder();
+        }
+
+        private static void OnEndContextRendering(ScriptableRenderContext context, List<Camera> cameras)
+        {
+            CompleteReorders();
         }
 
         public static void DestroyPanel(PanelState state)
@@ -328,6 +356,7 @@ namespace Yaui.Core
 
             _submittedSinceCollect = false;
             using var _ = CollectMarker.Auto();
+            CompleteReorders();
             CompleteLayout();
             TextPipeline.Complete();
             foreach (var panel in Panels)
@@ -345,6 +374,15 @@ namespace Yaui.Core
             // After the transforms: custom draws place their meshes on the nodes as rendered.
             // By index: user code may enable or disable custom draws.
             for (var i = 0; i < CustomDraws.Count; i++) CustomDraws[i].Collect();
+
+            // Reordering runs while the render pipeline records the cameras, until the draws are recorded.
+            foreach (var panel in Panels)
+            {
+                using (ReorderMarker.Auto()) panel.ScheduleReorder();
+                using (FeaturesMarker.Auto()) panel.UpdateFeatures();
+            }
+
+            JobHandle.ScheduleBatchedJobs();
 
             Primitives.Upload();
             Exts.Upload();
