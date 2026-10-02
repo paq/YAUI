@@ -306,6 +306,44 @@ namespace Yaui.Tests
         }
 
         [Test]
+        public void SvgFollowsAnAssetChangedInPlace()
+        {
+            var root = new GameObject("Vector test panel");
+            var asset = YauiVectorAsset.FromSvg(Svg("<rect width=\"24\" height=\"24\"/>"));
+            var other = YauiVectorAsset.FromSvg(Svg("<rect width=\"10\" height=\"10\" fill=\"currentColor\"/><circle cx=\"16\" cy=\"16\" r=\"4\" fill=\"#ea17b9\"/>"));
+            try
+            {
+                var panel = root.AddComponent<YauiPanel>();
+                panel.RenderMode = PanelRenderMode.World;
+                panel.ReferenceResolution = new Vector2(200f, 200f);
+                var child = new GameObject("SVG");
+                child.transform.SetParent(root.transform, false);
+                var svg = child.AddComponent<YauiSvg>();
+                svg.Vector = asset;
+                var layout = LayoutStyle.Default;
+                layout.width = 48f;
+                layout.alignSelf = FlexAlign.FlexStart;
+                svg.Layout = layout;
+                YauiPanel.ForceUpdate();
+                Assert.That(asset.Layers.Count, Is.EqualTo(1));
+
+                JsonUtility.FromJsonOverwrite(JsonUtility.ToJson(other), asset);
+                YauiPanel.ForceUpdate();
+
+                Assert.That(asset.Layers.Count, Is.EqualTo(2));
+                var start = svg.ContentRange.Start;
+                for (var i = 0; i < 2; i++)
+                {
+                    var primitive = YauiSystem.Primitives.Read(start + i);
+                    Assert.That(primitive.Flags, Is.EqualTo(PrimitiveFlags.Vector));
+                    var layer = YauiSystem.Vectors.Layers.Read((int)primitive.BorderColor.x);
+                    Assert.That(layer.BandCount, Is.EqualTo((uint)other.Layers[i].BandCount));
+                }
+            }
+            finally { Object.DestroyImmediate(root); Object.DestroyImmediate(asset); Object.DestroyImmediate(other); }
+        }
+
+        [Test]
         public void LeasesShareLayersAndReleasedHandlesStayInvalid()
         {
             var asset = YauiVectorAsset.FromSvg(Svg("<rect width=\"24\" height=\"24\"/>"));

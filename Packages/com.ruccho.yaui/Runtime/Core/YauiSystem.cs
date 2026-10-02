@@ -288,6 +288,7 @@ namespace Yaui.Core
 
             using var _ = SubmitMarker.Auto();
             Tickers.Tick();
+            Vectors.Refresh();
 
             // A frame without rendering leaves the previous work uncollected.
             if (_layoutInFlight) Collect();

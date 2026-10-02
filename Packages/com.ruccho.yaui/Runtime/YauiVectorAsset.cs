@@ -6,12 +6,13 @@ using Yaui.Vector;
 namespace Yaui
 {
     /// <summary>An SVG baked into layered quadratic outlines for the Slug renderer.</summary>
-    public sealed class YauiVectorAsset : ScriptableObject
+    public sealed class YauiVectorAsset : ScriptableObject, ISerializationCallbackReceiver
     {
         [SerializeField] private string sourceSvg;
         [SerializeField] private Rect viewBox;
         [SerializeField] private VectorLayer[] layers;
         [NonSerialized] private IReadOnlyList<VectorLayer> _readLayers;
+        [NonSerialized] private int _revision;
 
         /// <summary>The source document.</summary>
         public string SourceSvg => sourceSvg;
@@ -21,6 +22,17 @@ namespace Yaui
 
         /// <summary>The paints in document order.</summary>
         public IReadOnlyList<VectorLayer> Layers => _readLayers ??= Array.AsReadOnly(layers ?? Array.Empty<VectorLayer>());
+
+        /// <summary>Changes whenever the serialized contents are replaced in place (reimport, undo, copy).</summary>
+        internal int Revision => _revision;
+
+        void ISerializationCallbackReceiver.OnBeforeSerialize() { }
+
+        void ISerializationCallbackReceiver.OnAfterDeserialize()
+        {
+            _readLayers = null;
+            _revision++;
+        }
 
         /// <summary>Parses and bakes an SVG. The caller owns the returned runtime asset.</summary>
         public static YauiVectorAsset FromSvg(string svg)

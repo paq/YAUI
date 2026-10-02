@@ -28,6 +28,7 @@ namespace Yaui.Rendering
         {
             public YauiVectorAsset Asset;
             public int References;
+            public int Revision;
             public int[] Layers;
             public (int Curves, int CurveCapacity, int Bands, int BandCapacity, int Indices, int IndexCapacity)[] Ranges;
         }
@@ -40,50 +41,15 @@ namespace Yaui.Rendering
         internal readonly GpuStore<uint> Indices = new(64, 1);
         internal readonly GpuStore<VectorLayerGpu> Layers = new(16, 1);
 
+        /// <summary>An asset's geometry was uploaded again after its contents changed; its layers have new slots.</summary>
+        internal event Action<YauiVectorAsset> Rebuilt;
+
         internal int Acquire(YauiVectorAsset asset)
         {
             if (!_assets.TryGetValue(asset, out var entry))
             {
-                entry = new Entry
-                {
-                    Asset = asset, Layers = new int[asset.Layers.Count],
-                    Ranges = new (int, int, int, int, int, int)[asset.Layers.Count]
-                };
-                for (var i = 0; i < asset.Layers.Count; i++)
-                {
-                    var layer = asset.Layers[i];
-                    var cc = GpuStore<VectorCurveGpu>.RangeCapacity(layer.Curves.Count);
-                    var bc = GpuStore<uint2>.RangeCapacity(layer.Bands.Count);
-                    var ic = GpuStore<uint>.RangeCapacity(layer.Indices.Count);
-                    var cs = Curves.AllocateRange(cc);
-                    var bs = Bands.AllocateRange(bc);
-                    var indexStart = Indices.AllocateRange(ic);
-                    var slot = Layers.Allocate();
-                    entry.Layers[i] = slot;
-                    entry.Ranges[i] = (cs, cc, bs, bc, indexStart, ic);
-                    for (var c = 0; c < layer.Curves.Count; c++)
-                    {
-                        var curve = layer.Curves[c];
-                        Curves[cs + c] = new VectorCurveGpu
-                        {
-                            P0 = curve.P0, P1 = curve.P1, P2 = curve.P2, Weight = curve.Weight, Reserved = 0f
-                        };
-                    }
-
-                    for (var b = 0; b < layer.Bands.Count; b++)
-                    {
-                        var band = layer.Bands[b];
-                        Bands[bs + b] = new uint2((uint)(indexStart + band.Start), (uint)band.Count);
-                    }
-
-                    for (var c = 0; c < layer.Indices.Count; c++)
-                        Indices[indexStart + c] = (uint)(cs + layer.Indices[c]);
-                    Layers[slot] = new VectorLayerGpu
-                    {
-                        BandStart = (uint)bs, BandCount = (uint)layer.BandCount, EvenOdd = layer.EvenOdd ? 1u : 0u, Reserved = 0u
-                    };
-                }
-
+                entry = new Entry { Asset = asset };
+                Build(entry);
                 _assets.Add(asset, entry);
             }
 
@@ -91,6 +57,76 @@ namespace Yaui.Rendering
             var lease = checked(++_nextLease);
             _leases.Add(lease, entry);
             return lease;
+        }
+
+        /// <summary>Main thread, before layout: uploads again the assets whose contents changed in place.</summary>
+        internal void Refresh()
+        {
+            List<Entry> stale = null;
+            foreach (var entry in _assets.Values)
+                if (entry.Asset != null && entry.Revision != entry.Asset.Revision)
+                    (stale ??= new List<Entry>()).Add(entry);
+            if (stale == null) return;
+            foreach (var entry in stale)
+            {
+                Free(entry);
+                Build(entry);
+                Rebuilt?.Invoke(entry.Asset);
+            }
+        }
+
+        private void Build(Entry entry)
+        {
+            var asset = entry.Asset;
+            entry.Revision = asset.Revision;
+            entry.Layers = new int[asset.Layers.Count];
+            entry.Ranges = new (int, int, int, int, int, int)[asset.Layers.Count];
+            for (var i = 0; i < asset.Layers.Count; i++)
+            {
+                var layer = asset.Layers[i];
+                var cc = GpuStore<VectorCurveGpu>.RangeCapacity(layer.Curves.Count);
+                var bc = GpuStore<uint2>.RangeCapacity(layer.Bands.Count);
+                var ic = GpuStore<uint>.RangeCapacity(layer.Indices.Count);
+                var cs = Curves.AllocateRange(cc);
+                var bs = Bands.AllocateRange(bc);
+                var indexStart = Indices.AllocateRange(ic);
+                var slot = Layers.Allocate();
+                entry.Layers[i] = slot;
+                entry.Ranges[i] = (cs, cc, bs, bc, indexStart, ic);
+                for (var c = 0; c < layer.Curves.Count; c++)
+                {
+                    var curve = layer.Curves[c];
+                    Curves[cs + c] = new VectorCurveGpu
+                    {
+                        P0 = curve.P0, P1 = curve.P1, P2 = curve.P2, Weight = curve.Weight, Reserved = 0f
+                    };
+                }
+
+                for (var b = 0; b < layer.Bands.Count; b++)
+                {
+                    var band = layer.Bands[b];
+                    Bands[bs + b] = new uint2((uint)(indexStart + band.Start), (uint)band.Count);
+                }
+
+                for (var c = 0; c < layer.Indices.Count; c++)
+                    Indices[indexStart + c] = (uint)(cs + layer.Indices[c]);
+                Layers[slot] = new VectorLayerGpu
+                {
+                    BandStart = (uint)bs, BandCount = (uint)layer.BandCount, EvenOdd = layer.EvenOdd ? 1u : 0u, Reserved = 0u
+                };
+            }
+        }
+
+        private void Free(Entry entry)
+        {
+            for (var i = 0; i < entry.Layers.Length; i++)
+            {
+                var range = entry.Ranges[i];
+                Curves.FreeRange(range.Curves, range.CurveCapacity);
+                Bands.FreeRange(range.Bands, range.BandCapacity);
+                Indices.FreeRange(range.Indices, range.IndexCapacity);
+                Layers.Free(entry.Layers[i]);
+            }
         }
 
         internal bool Contains(int lease) => _leases.ContainsKey(lease);
@@ -102,14 +138,7 @@ namespace Yaui.Rendering
             if (!_leases.Remove(lease, out var entry)) return;
             if (--entry.References != 0) return;
             _assets.Remove(entry.Asset);
-            for (var i = 0; i < entry.Layers.Length; i++)
-            {
-                var range = entry.Ranges[i];
-                Curves.FreeRange(range.Curves, range.CurveCapacity);
-                Bands.FreeRange(range.Bands, range.BandCapacity);
-                Indices.FreeRange(range.Indices, range.IndexCapacity);
-                Layers.Free(entry.Layers[i]);
-            }
+            Free(entry);
         }
 
         internal void Upload()

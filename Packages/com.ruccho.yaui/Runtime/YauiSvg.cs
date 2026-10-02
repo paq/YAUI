@@ -87,12 +87,18 @@ namespace Yaui
             SyncVector();
         }
 
-        protected override void OnRegistered() => SyncVector();
+        protected override void OnRegistered()
+        {
+            YauiSystem.Vectors.Rebuilt -= OnVectorRebuilt;
+            YauiSystem.Vectors.Rebuilt += OnVectorRebuilt;
+            SyncVector();
+        }
         protected override void OnLayoutApplied() => SyncVector();
         protected override void OnBoxChanged() => SyncVector();
 
         protected override void OnUnregistering()
         {
+            YauiSystem.Vectors.Rebuilt -= OnVectorRebuilt;
             _bound.Release();
             _bound = default;
         }
@@ -126,6 +132,13 @@ namespace Yaui
             if (widthMode == YauiMeasureMode.Exactly) size.x = width;
             if (heightMode == YauiMeasureMode.Exactly) size.y = height;
             return size;
+        }
+
+        private void OnVectorRebuilt(YauiVectorAsset asset)
+        {
+            if (asset != vector) return;
+            MarkMeasureDirty();
+            SyncVector();
         }
 
         private void SyncVector()
