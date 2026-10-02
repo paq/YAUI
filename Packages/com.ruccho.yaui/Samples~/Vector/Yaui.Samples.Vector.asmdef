@@ -1,0 +1,6 @@
+{
+    "name": "Yaui.Samples.Vector",
+    "rootNamespace": "Yaui.Samples.Vector",
+    "references": ["Yaui"],
+    "autoReferenced": true
+}

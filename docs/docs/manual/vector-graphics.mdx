@@ -1,0 +1,68 @@
+---
+title: Vector graphics
+sidebar_position: 6
+---
+
+# Vector graphics
+
+`YauiSvg` draws SVG fills and strokes from quadratic outlines with the [Slug algorithm](https://jcgt.org/published/0006/02/02/). It uses the same draws as boxes, text and images, without a texture atlas or a tessellated mesh.
+
+## Importing SVGs
+
+YAUI supplies an **override importer** for `.svg`. Unity's default SVG importer stays available. Select YAUI's `YauiSvgImporter` in the asset's importer selector, or select it in an editor script:
+
+```csharp
+using UnityEditor;
+using Yaui.Editor;
+
+AssetDatabase.SetImporterOverride<YauiSvgImporter>("Assets/Icons/search.svg");
+```
+
+The main object becomes a `YauiVectorAsset`. Assign it to the **Vector** property of a `YauiSvg` element. To restore Unity's importer, use `AssetDatabase.ClearImporterOverride`.
+
+## YauiSvg
+
+The vector is drawn over the content box, inside its padding and border. Its natural size comes from the SVG viewBox. Setting one layout dimension lets the other follow that aspect. Like text, this measured element has no layout children.
+
+| Property | Description |
+|---|---|
+| `Vector` | The baked SVG asset |
+| `Color` | Colors paints that use `currentColor`; its alpha also multiplies fixed-color paints |
+| `PreserveAspect` | Fits and centers the viewBox in the content box; default `true` |
+
+The element's tint and inherited opacity apply to every paint. Vectors support clipping, stencil masks, overlay panels and world panels. Hit testing uses the element's box, rather than the outline.
+
+## Runtime assets
+
+```csharp
+var asset = YauiVectorAsset.FromSvg(svgText);
+svg.Vector = asset;
+svg.Color = Color.cyan;
+```
+
+The caller owns a runtime asset. Clear references to it and destroy it when it is no longer needed. Imported assets are owned by Unity.
+
+For a [custom element](./custom-elements.mdx), acquire a `YauiVector`, then emit one `YauiPrimitive.Vector(rect, handle, layerIndex, color)` per layer. The rect maps the whole viewBox; each primitive covers its layer's bounds. Release the handle in `OnUnregistering`. Acquisitions share the asset's GPU buffers. Handles become invalid when released or when the rendering stores shut down.
+
+## Supported SVG features
+
+Unity's built-in vector graphics module parses the document. YAUI bakes its scene, including paths, rectangles, circles, ellipses, polygons, groups and affine transforms.
+
+- Solid fills, with nonzero or even-odd winding.
+- Solid strokes, including `currentColor`, open and closed contours.
+- Round, square and butt caps; round, bevel and miter joins, with the stroke's miter limit.
+- Fill/stroke opacity and inherited node opacity.
+- Cubic curves converted adaptively to quadratics.
+- Round caps and joins represented by exact rational quadratic arcs. Curved stroke centerlines are flattened before expansion; transforms also transform the stroke geometry.
+
+## Limits and cost
+
+Gradients use their first stop as a solid approximation and log a warning. Other non-solid paints use white with a warning. Dashed strokes become continuous strokes with a warning. SVG clip paths are ignored with a warning; use YAUI clipping or masks instead. Embedded images, filters, text, animation and SVG masks are outside this renderer's scope. Support for CSS, units and references follows Unity's parser.
+
+Group opacity is applied to each paint; overlapping paints do not get SVG's isolated-group compositing. The SVG viewport does not clip geometry extending outside the viewBox.
+
+The bake tolerance is **0.01% of the larger viewBox dimension**. Curves use 32-bit floats, normalized per layer. Each direction has 1–16 bands, sized from the curve count, with curve lists sorted for early exit. Rational circle arcs stay exact, but cubic fills and curved stroke centerlines have a finite bake tolerance.
+
+A paint uses one quad. Complex curved strokes can have thousands of curves because their segments and joins form a nonzero union. Rendering cost depends on curves crossed by each ray, screen area and paint count. Import assets ahead of time for frequently used icons.
+
+The **Vector** sample shows the radio, clapperboard and search Lucide icons at 16, 20, 24, 48 and 96 pixels in several colors, plus overlapping colored fills and other cap/join styles. Open its scene and enter Play mode; a wide Game view shows all three color groups.
