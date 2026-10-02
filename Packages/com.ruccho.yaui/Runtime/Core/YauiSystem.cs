@@ -59,6 +59,7 @@ namespace Yaui.Core
         internal static PanelRenderer Renderer { get; private set; }
 
         internal static TextureRegistry Textures { get; private set; }
+        internal static VectorRegistry Vectors { get; private set; }
 
         /// <summary>A concrete list, so that foreach does not box the enumerator.</summary>
         internal static List<PanelState> AllPanels => Panels;
@@ -75,6 +76,7 @@ namespace Yaui.Core
             Clips = new GpuStore<ClipGpuData>(64, 1);
             Clips[0] = new ClipGpuData { Rect = ClipGpuData.NoClip };
             Textures = new TextureRegistry();
+            Vectors = new VectorRegistry();
             TextPipeline.Subscribe();
             _layoutRoots = new NativeList<RootLayout>(4, Allocator.Persistent);
             _layoutBoundaries = new NativeList<IntPtr>(64, Allocator.Persistent);
@@ -120,6 +122,7 @@ namespace Yaui.Core
             Panels.Clear();
             Renderer.Dispose();
             Textures.Dispose();
+            Vectors.Dispose();
             Nodes.Dispose();
             YogaNodeStore.DisposeAll();
             _layoutRoots.Dispose();
@@ -388,6 +391,7 @@ namespace Yaui.Core
             Exts.Upload();
             Nodes.Gpu.Upload();
             Clips.Upload();
+            Vectors.Upload();
             Renderer.Prepare();
         }
 

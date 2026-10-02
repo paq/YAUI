@@ -19,6 +19,7 @@
 #define YAUI_FLAG_TEXT_BOLD 8u
 #define YAUI_FLAG_IMAGE 32u
 #define YAUI_FLAG_RADIAL_FILL 64u
+#define YAUI_FLAG_VECTOR 128u
 // In primitives, the upper 16 bits of the flags are a texture id; the vertex shader replaces them with the slot of
 // the texture in the draw (0..7) at bit 8 of the flags it passes on.
 #define YAUI_TEXTURE_SLOT_SHIFT 8u
@@ -34,6 +35,7 @@
 #define YAUI_FEATURE_SHADOW 4
 #define YAUI_FEATURE_IMAGE 32
 #define YAUI_FEATURE_RADIAL_FILL 64
+#define YAUI_FEATURE_VECTOR 128
 #if !defined(YAUI_FEATURES) && defined(YAUI_FEATURE_KEYWORDS)
     #if defined(YAUI_TEXT)
         #define YAUI_KEYWORD_TEXT 1
@@ -55,14 +57,19 @@
     #else
         #define YAUI_KEYWORD_SHADOW 0
     #endif
+    #if defined(YAUI_VECTOR)
+        #define YAUI_KEYWORD_VECTOR 1
+    #else
+        #define YAUI_KEYWORD_VECTOR 0
+    #endif
     #define YAUI_FEATURES (YAUI_KEYWORD_TEXT * YAUI_FEATURE_TEXT + YAUI_KEYWORD_IMAGE * YAUI_FEATURE_IMAGE + \
         YAUI_KEYWORD_BORDER * (YAUI_FEATURE_BORDER + YAUI_FEATURE_RADIAL_FILL) + \
-        YAUI_KEYWORD_SHADOW * YAUI_FEATURE_SHADOW)
+        YAUI_KEYWORD_SHADOW * YAUI_FEATURE_SHADOW + YAUI_KEYWORD_VECTOR * YAUI_FEATURE_VECTOR)
 #endif
 #ifndef YAUI_FEATURES
-#define YAUI_FEATURES 127
+#define YAUI_FEATURES 255
 #endif
-#define YAUI_HAS_UV (YAUI_FEATURES & (YAUI_FEATURE_TEXT | YAUI_FEATURE_IMAGE))
+#define YAUI_HAS_UV (YAUI_FEATURES & (YAUI_FEATURE_TEXT | YAUI_FEATURE_IMAGE | YAUI_FEATURE_VECTOR))
 #define YAUI_HAS_BORDER_COLOR (YAUI_FEATURES & (YAUI_FEATURE_BORDER | YAUI_FEATURE_RADIAL_FILL))
 #define YAUI_HAS_SHADOW (YAUI_FEATURES & YAUI_FEATURE_SHADOW)
 // Flags with the features left out cleared, so that the compiler folds their branches.
@@ -152,8 +159,15 @@ StructuredBuffer<PrimitiveExt> _YauiExts;
 StructuredBuffer<NodeData> _YauiNodes;
 StructuredBuffer<ClipData> _YauiClips;
 
+#if YAUI_FEATURES & YAUI_FEATURE_VECTOR
+#include "Packages/com.ruccho.yaui/Runtime/Shaders/Vector.hlsl"
+#endif
+
 struct Varyings
 {
+    #if YAUI_FEATURES & YAUI_FEATURE_VECTOR
+    nointerpolation uint vectorLayer : TEXCOORD11;
+    #endif
     float4 positionCS : SV_POSITION;
     #if YAUI_HAS_UV
     float2 uv : TEXCOORD0;
@@ -249,12 +263,36 @@ Varyings VertImpl(uint vertexId, bool world)
 
     // Expand the quad to cover the drop shadow.
     float2 extent = (featureFlags & YAUI_FLAG_SHADOW) ? abs(shadow.xy) + shadow.z * 3.0 + shadow.w : 0.0;
+    float2x2 m = float2x2(n.m.xy, n.m.zw);
     float2 halfSize = rect.zw * 0.5;
     float2 center = rect.xy + halfSize;
+    #if YAUI_FEATURES & YAUI_FEATURE_VECTOR
+    if (featureFlags & YAUI_FLAG_VECTOR)
+    {
+        if (world)
+        {
+            float4 projected = mul(UNITY_MATRIX_VP,
+                mul(_YauiPanelMatrix, float4(mul(m, center) + n.translation, 0.0, 1.0)));
+            float4 dx = mul(UNITY_MATRIX_VP, mul(_YauiPanelMatrix, float4(n.m.x, n.m.z, 0.0, 0.0)));
+            float4 dy = mul(UNITY_MATRIX_VP, mul(_YauiPanelMatrix, float4(n.m.y, n.m.w, 0.0, 0.0)));
+            float denominator = max(projected.w * projected.w, 1e-12);
+            float2 axisX = (dx.xy * projected.w - projected.xy * dx.w) / denominator * _ScreenParams.xy * 0.5;
+            float2 axisY = (dy.xy * projected.w - projected.xy * dy.w) / denominator * _ScreenParams.xy * 0.5;
+            float det = max(abs(axisX.x * axisY.y - axisX.y * axisY.x), 1e-12);
+            float maxW = abs(projected.w) + abs(dx.w) * halfSize.x + abs(dy.w) * halfSize.y;
+            extent = float2(abs(axisY.y) + abs(axisY.x), abs(axisX.y) + abs(axisX.x)) / det *
+                (maxW * maxW / denominator);
+        }
+        else
+        {
+            extent = _YauiPixelSize * float2(abs(n.m.w) + abs(n.m.y), abs(n.m.z) + abs(n.m.x)) /
+                max(abs(determinant(m)), 1e-12);
+        }
+    }
+    #endif
     float2 localMin = center - halfSize - extent;
     float2 localMax = center + halfSize + extent;
 
-    float2x2 m = float2x2(n.m.xy, n.m.zw);
     float2 localPosition;
     float2 canvasPosition;
     bool axisAligned = n.m.y == 0.0 && n.m.z == 0.0;
@@ -289,6 +327,9 @@ Varyings VertImpl(uint vertexId, bool world)
     #endif
     uint flags = (featureFlags & 0xffu) | (slot << YAUI_TEXTURE_SLOT_SHIFT);
     Varyings o;
+    #if YAUI_FEATURES & YAUI_FEATURE_VECTOR
+    o.vectorLayer = p.borderColor.x;
+    #endif
     float localPixelSize = 0.0;
     if (world)
     {
@@ -489,6 +530,11 @@ half4 FragImpl(Varyings i, bool world)
         }
     }
 
+    #endif
+
+    #if YAUI_FEATURES & YAUI_FEATURE_VECTOR
+    if (flags & YAUI_FLAG_VECTOR)
+        return half4(Premultiply(color) * VectorCoverage(uv, i.vectorLayer) * clipCoverage);
     #endif
 
     if (flags & YAUI_FLAG_TEXT)

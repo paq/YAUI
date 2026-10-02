@@ -9,7 +9,8 @@
         "com.unity.burst": "1.8.29",
         "com.unity.collections": "2.6.5",
         "com.unity.render-pipelines.universal": "17.3.0",
-        "com.unity.ugui": "2.0.0"
+        "com.unity.ugui": "2.0.0",
+        "com.unity.modules.vectorgraphics": "1.0.0"
     },
     "author": {
         "name": "ruccho",
@@ -40,6 +41,11 @@
             "displayName": "Dynamic Atlas",
             "description": "Images of small sprites packed into shared textures at run time, with the atlas pages shown.",
             "path": "Samples~/DynamicAtlas"
+        },
+        {
+            "displayName": "Vector",
+            "description": "SVG fills and strokes rendered by Slug at several sizes and colors.",
+            "path": "Samples~/Vector"
         }
     ]
 }

@@ -160,6 +160,10 @@ namespace Yaui.Rendering
             Shader.SetGlobalBuffer(ExtsId, YauiSystem.Exts.Buffer);
             Shader.SetGlobalBuffer(NodesId, YauiSystem.Nodes.Gpu.Buffer);
             Shader.SetGlobalBuffer(ClipsId, YauiSystem.Clips.Buffer);
+            Shader.SetGlobalBuffer("_YauiVectorCurves", YauiSystem.Vectors.Curves.Buffer);
+            Shader.SetGlobalBuffer("_YauiVectorBands", YauiSystem.Vectors.Bands.Buffer);
+            Shader.SetGlobalBuffer("_YauiVectorIndices", YauiSystem.Vectors.Indices.Buffer);
+            Shader.SetGlobalBuffer("_YauiVectorLayers", YauiSystem.Vectors.Layers.Buffer);
             YauiSystem.Textures.Atlas.RestoreIfLost();
         }
 
@@ -535,6 +539,7 @@ namespace Yaui.Rendering
             if ((features & ShaderFeatures.Image) != 0) material.EnableKeyword("YAUI_IMAGE");
             if ((features & ShaderFeatures.Border) != 0) material.EnableKeyword("YAUI_BORDER");
             if ((features & ShaderFeatures.Shadow) != 0) material.EnableKeyword("YAUI_SHADOW");
+            if ((features & ShaderFeatures.Vector) != 0) material.EnableKeyword("YAUI_VECTOR");
             _uberMaterials[index] = material;
             return material;
         }

@@ -459,6 +459,7 @@ namespace Yaui.Core
                 if ((features & ShaderFeatures.Image) != 0) cost += YauiBatching.PixelImageMicroseconds;
                 if ((features & ShaderFeatures.Border) != 0) cost += YauiBatching.PixelBorderMicroseconds;
                 if ((features & ShaderFeatures.Shadow) != 0) cost += YauiBatching.PixelShadowMicroseconds;
+                if ((features & ShaderFeatures.Vector) != 0) cost += YauiBatching.PixelVectorMicroseconds;
                 costs.Pixel.Add(cost);
             }
 

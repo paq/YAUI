@@ -63,6 +63,7 @@ namespace Yaui
         internal const float PixelImageMicroseconds = 0.02e-3f;
         internal const float PixelBorderMicroseconds = 0.07e-3f;
         internal const float PixelShadowMicroseconds = 0.185e-3f;
+        internal const float PixelVectorMicroseconds = 0.1e-3f;
 
         // Choosing the draws of a panel again, per primitive (on a worker thread): while it moves, every frame.
         internal const float LayeringMicroseconds = 0.17f;

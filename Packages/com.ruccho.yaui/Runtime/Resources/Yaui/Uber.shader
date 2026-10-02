@@ -21,6 +21,7 @@ Shader "Hidden/Yaui/Uber"
     #pragma multi_compile_local _ YAUI_IMAGE
     #pragma multi_compile_local _ YAUI_BORDER
     #pragma multi_compile_local _ YAUI_SHADOW
+    #pragma multi_compile_local _ YAUI_VECTOR
     #define YAUI_FEATURE_KEYWORDS
     #include "Packages/com.ruccho.yaui/Runtime/Shaders/Yaui.hlsl"
     ENDHLSL

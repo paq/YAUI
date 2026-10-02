@@ -78,7 +78,7 @@ namespace Yaui
         public readonly YauiPrimitive WithBorder(float width, Color color)
         {
             var p = this;
-            if ((p.Data.Flags & PrimitiveFlags.Shadow) != 0) return p;
+            if ((p.Data.Flags & (PrimitiveFlags.Shadow | PrimitiveFlags.Vector)) != 0) return p;
 
             p.Data.Flags &= ~PrimitiveFlags.RadialFill;
             if (width > 0f)
@@ -99,7 +99,7 @@ namespace Yaui
         public readonly YauiPrimitive WithRadialFill(Vector2 center, float startAngle, float sweep)
         {
             var p = this;
-            if ((p.Data.Flags & PrimitiveFlags.Text) != 0) return p;
+            if ((p.Data.Flags & (PrimitiveFlags.Text | PrimitiveFlags.Vector)) != 0) return p;
 
             p.Data.Flags = (p.Data.Flags & ~PrimitiveFlags.Border) | PrimitiveFlags.RadialFill;
             p.Data.BorderColor = GpuPacking.Half4(new float4(center.x, center.y, startAngle, sweep));
@@ -137,6 +137,33 @@ namespace Yaui
             var p = this;
             p.Data.Rect = ToFloat4(rect);
             return p;
+        }
+
+        /// <summary>Draws a paint of an acquired vector asset. Rect maps its entire viewBox; color tints currentColor paints.</summary>
+        public static YauiPrimitive Vector(Rect rect, YauiVector vector, int layer, Color color)
+        {
+            if (!vector.IsValid) throw new ArgumentException("The vector is not acquired.", nameof(vector));
+            var asset = vector.Asset;
+            if (layer < 0 || layer >= asset.Layers.Count) throw new ArgumentOutOfRangeException(nameof(layer));
+            var paint = asset.Layers[layer];
+            var tint = paint.CurrentColor ? color * paint.Color : paint.Color;
+            if (!paint.CurrentColor) tint.a *= color.a;
+            var bounds = paint.Bounds;
+            var size = asset.ViewBox.size;
+            var offset = (bounds.min - asset.ViewBox.min) / size;
+            var extent = bounds.size / size;
+            return new YauiPrimitive
+            {
+                Data = new PrimitiveData
+                {
+                    Rect = new float4(rect.x + offset.x * rect.width, rect.y + offset.y * rect.height,
+                        extent.x * rect.width, extent.y * rect.height),
+                    UvRect = GpuPacking.Unorm16X4(new float4(0f, 0f, 1f, 1f)),
+                    Color = GpuPacking.Color(tint),
+                    Flags = PrimitiveFlags.Vector,
+                    BorderColor = new uint2((uint)vector.Layer(layer), 0u)
+                }
+            };
         }
 
         private readonly float Skew => math.f16tof32(Data.BorderWidthAndSkew >> 16);
