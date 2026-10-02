@@ -396,6 +396,9 @@ namespace Yaui
             base.OnPointerDown(eventData);
             if (eventData.button != PointerEventData.InputButton.Left || !IsInteractable) return;
 
+            // Keys reach only the selected object, so a press selects the field even when it takes no part in the
+            // navigation.
+            if (eventData.selectedObject != gameObject) eventData.selectedObject = gameObject;
             if (!_focused) ActivateInputField();
 
             if (!_focused || _keyboard != null) return;

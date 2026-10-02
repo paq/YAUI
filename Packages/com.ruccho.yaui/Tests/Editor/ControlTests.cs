@@ -356,6 +356,22 @@ namespace Yaui.Tests
         }
 
         [Test]
+        public void PressingAnInputFieldSelectsItWithoutNavigation()
+        {
+            var field = CreateInputField(out _);
+            var navigation = field.Navigation;
+            navigation.mode = NavigationMode.None;
+            field.Navigation = navigation;
+            _eventSystem.SetSelectedGameObject(null);
+
+            field.OnPointerDown(Pointer(10f, 10f));
+
+            Assert.IsTrue(field.IsFocused);
+            Assert.AreSame(field.gameObject, _eventSystem.currentSelectedGameObject,
+                "Keys go to the selected object only, so the pressed field must be it.");
+        }
+
+        [Test]
         public void InputFieldEditsItsText()
         {
             var field = CreateInputField(out var text);
