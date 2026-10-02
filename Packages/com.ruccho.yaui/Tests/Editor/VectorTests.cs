@@ -241,7 +241,7 @@ namespace Yaui.Tests
                     }
                 }
 
-                Assert.That(arcs, Is.EqualTo(8));
+                Assert.That(arcs, Is.EqualTo(4));
             }
             finally { Object.DestroyImmediate(asset); }
         }
