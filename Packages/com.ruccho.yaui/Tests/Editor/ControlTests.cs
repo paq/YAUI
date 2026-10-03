@@ -566,6 +566,7 @@ namespace Yaui.Tests
             list = dropdown.ListObject.GetComponent<YauiElement>();
             for (var i = 0; i < 4; i++) YauiPanel.ForceUpdate();
             Assert.AreEqual(200f, list.LayoutRect.height, 0.5f, "No taller than its max height.");
+            dropdown.Hide();
         }
 
         [Test]
