@@ -527,6 +527,48 @@ namespace Yaui.Tests
         }
 
         [Test]
+        public void DropdownFitsAnAutoHeightListToItsItems()
+        {
+            var dropdown = CreateDropdown(out _);
+            var scrolling = Add<YauiScrollView>(dropdown, 0f, 0f, "Scrolling template");
+            var listLayout = LayoutStyle.Default;
+            listLayout.maxHeight = Length.Points(200f);
+            listLayout.padding = new Edges(Length.Points(5f));
+            scrolling.GetComponent<YauiElement>().Layout = listLayout;
+            scrolling.GetComponent<YauiElement>().ClipChildren = true;
+            var content = Add<YauiElement>(scrolling, 0f, 0f, "Content");
+            var contentLayout = LayoutStyle.Default;
+            contentLayout.position = PositionType.Absolute;
+            contentLayout.width = Length.Percent(100f);
+            content.Layout = contentLayout;
+            scrolling.Content = content;
+            var item = Add<YauiToggle>(content, 0f, 30f, "Item");
+            var itemLayout = item.Element.Layout;
+            itemLayout.width = Length.Auto;
+            item.Element.Layout = itemLayout;
+            var itemText = Add<YauiText>(item, 0f, 0f, "ItemText");
+            itemText.Layout = LayoutStyle.Default;
+            scrolling.gameObject.SetActive(false);
+            dropdown.Template = scrolling.GetComponent<YauiElement>();
+            dropdown.ItemText = itemText;
+            YauiPanel.ForceUpdate();
+
+            dropdown.Show();
+            var list = dropdown.ListObject.GetComponent<YauiElement>();
+            Assert.AreEqual(0f, list.Opacity, "Hidden until it is sized.");
+            for (var i = 0; i < 4; i++) YauiPanel.ForceUpdate();
+            Assert.AreEqual(3f * 30f + 10f, list.LayoutRect.height, 0.5f, "As tall as its three items and its padding.");
+            Assert.AreEqual(1f, list.Opacity);
+            dropdown.Hide();
+
+            dropdown.AddOptions(new[] { "Date", "Elderberry", "Fig", "Grape", "Kiwi", "Lemon", "Mango", "Nectarine" });
+            dropdown.Show();
+            list = dropdown.ListObject.GetComponent<YauiElement>();
+            for (var i = 0; i < 4; i++) YauiPanel.ForceUpdate();
+            Assert.AreEqual(200f, list.LayoutRect.height, 0.5f, "No taller than its max height.");
+        }
+
+        [Test]
         public void DropdownClosesOnPressesOutside()
         {
             var dropdown = CreateDropdown(out _);

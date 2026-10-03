@@ -313,12 +313,19 @@ namespace Yaui
                 };
 
             _list.SetActive(true);
-            if (value < _items.Count)
+            var scrollView = _list.GetComponentInChildren<YauiScrollView>();
+            var selected = value < _items.Count ? _items[value] : null;
+            if (selected != null) EventSystem.current?.SetSelectedGameObject(selected.gameObject);
+
+            if (layout.height.unit == LengthUnit.Auto && scrollView != null && scrollView.Content != null)
             {
-                var selected = _items[value];
-                EventSystem.current?.SetSelectedGameObject(selected.gameObject);
-                var scrollView = _list.GetComponentInChildren<YauiScrollView>();
-                if (scrollView != null) Tickers.Add(new ScrollWhenLaidOut(scrollView, selected.Element));
+                listElement.Opacity = 0f;
+                Tickers.Add(new FitWhenLaidOut(this, listElement, scrollView, selected != null ? selected.Element : null,
+                    topLeft.y, bottom, panel));
+            }
+            else if (selected != null && scrollView != null)
+            {
+                Tickers.Add(new ScrollWhenLaidOut(scrollView, selected.Element));
             }
         }
 
@@ -375,6 +382,77 @@ namespace Yaui
             }
 
             return current.GetComponent<T>();
+        }
+
+        /// <summary>Sizes an auto-height list to its laid-out content, then scrolls to the selected item.</summary>
+        private sealed class FitWhenLaidOut : ITicker
+        {
+            private readonly YauiDropdown _dropdown;
+            private readonly YauiElement _list;
+            private readonly YauiScrollView _view;
+            private readonly YauiElement _selected;
+            private readonly float _top;
+            private readonly float _bottom;
+            private readonly YauiPanel _panel;
+            private int _frames;
+            private bool _fitted;
+
+            public FitWhenLaidOut(YauiDropdown dropdown, YauiElement list, YauiScrollView view, YauiElement selected,
+                float top, float bottom, YauiPanel panel)
+            {
+                _dropdown = dropdown;
+                _list = list;
+                _view = view;
+                _selected = selected;
+                _top = top;
+                _bottom = bottom;
+                _panel = panel;
+            }
+
+            public bool Tick(float time)
+            {
+                if (_dropdown == null || _list == null || _dropdown._list != _list.gameObject) return false;
+
+                if (++_frames > 10)
+                {
+                    _list.Opacity = 1f;
+                    return false;
+                }
+
+                if (!_fitted)
+                {
+                    var content = _view.Content;
+                    if (content == null || content.LayoutRect.height <= 0f && _frames < 3) return true;
+
+                    var viewport = _view.Viewport;
+                    var height = (viewport == _list ? 0f : _list.LayoutRect.height - viewport.LayoutRect.height) +
+                                 VerticalFrame(viewport) + content.LayoutRect.height;
+                    var layout = _list.Layout;
+                    if (layout.maxHeight.unit == LengthUnit.Point) height = Mathf.Min(height, layout.maxHeight.value);
+
+                    var canvasHeight = _panel != null ? _panel.CanvasSize.y : float.PositiveInfinity;
+                    var above = _bottom + height > canvasHeight && _top - height >= 0f;
+                    layout.height = Length.Points(height);
+                    layout.inset = new Edges(layout.inset.left, Length.Points(above ? _top - height : _bottom),
+                        Length.Auto, Length.Auto);
+                    _list.Layout = layout;
+                    _fitted = true;
+                    return true;
+                }
+
+                if (_selected != null) _view.ScrollIntoView(_selected);
+                _list.Opacity = 1f;
+                return false;
+            }
+
+            private static float VerticalFrame(YauiElement element)
+            {
+                var padding = element.Layout.padding;
+                var frame = 2f * element.Box.borderWidth;
+                if (padding.top.unit == LengthUnit.Point) frame += padding.top.value;
+                if (padding.bottom.unit == LengthUnit.Point) frame += padding.bottom.value;
+                return frame;
+            }
         }
 
         /// <summary>Scrolls the list to the selected item once it is laid out.</summary>
